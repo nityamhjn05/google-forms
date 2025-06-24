@@ -8,16 +8,37 @@ export default function Login() {
   const [password,   setPassword  ] = useState('')
 
   const handleSubmit = async e => {
-    e.preventDefault()
-    const { data } = await axios.post(
-      'http://localhost:1111/api/auth/login',
-      { employeeId, password }
-    )
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('role', data.role)
-    // redirect based on role:
-    window.location.href = data.role === 'ADMIN' ? '/admin' : '/user'
+  e.preventDefault();
+  try {
+    const { data } = await axios.post('http://localhost:1111/auth/login', {
+      employeeId,
+      password,
+    });
+
+    // Extract role properly depending on backend structure
+    const rawRole = data.role;
+    const role =
+      typeof rawRole === 'string'
+        ? rawRole.toUpperCase()
+        : rawRole?.authority?.toUpperCase();
+
+    if (!role) {
+      alert('Could not determine role from backend.');
+      return;
+    }
+
+    // Store in localStorage
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('role', role);
+
+    // Redirect accordingly
+    window.location.href = role === 'ADMIN' ? '/admin' : '/user';
+  } catch (err) {
+    console.error('Login failed:', err);
+    alert('Invalid credentials. Please try again.');
   }
+};
+
 
   return (
     <div
