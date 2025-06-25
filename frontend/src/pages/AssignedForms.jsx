@@ -1,3 +1,4 @@
+// src/pages/AssignedForms.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -9,7 +10,7 @@ export default function AssignedForms() {
   useEffect(() => {
     API.get('/api/user/forms/assigned')
       .then(res => setForms(res.data))
-      .catch(err => console.error('Error fetching assigned forms:', err));
+      .catch(console.error);
   }, []);
 
   return (
