@@ -308,4 +308,54 @@ export default function FillAssignedForm() {
     </div>
   );
 }
+////////////////asssiiiignnnedddd
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import API from '../api/api.js';
+
+export default function AssignedForms() {
+  const [forms, setForms] = useState([]);
+  const nav = useNavigate();
+
+  useEffect(() => {
+    API.get('/api/user/forms/assigned')
+      .then(res => {
+        console.log('Assigned Forms:', res.data); // Debug log
+        setForms(res.data);
+      })
+      .catch(err => {
+        console.error('Error fetching assigned forms:', err);
+      });
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center gap-4">
+        <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
+        <h1 className="text-xl font-bold">Assigned Feedback Forms</h1>
+      </header>
+
+      <main className="p-8 max-w-3xl mx-auto">
+        <h2 className="text-2xl font-semibold mb-4 text-blue-900">Your Assigned Forms</h2>
+        {forms.length === 0 ? (
+          <p className="text-gray-500">No forms assigned to you.</p>
+        ) : (
+          <ul className="space-y-3">
+            {forms.map(f => (
+              <li key={f.id} className="bg-white p-4 shadow rounded flex justify-between items-center">
+                <span>{f.title}</span>
+                <button
+                  onClick={() => nav(`/user/fill/${f.id}`)}
+                  className="text-blue-700 underline hover:text-blue-900"
+                >
+                  Fill Now
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </div>
+  );
+}
 
