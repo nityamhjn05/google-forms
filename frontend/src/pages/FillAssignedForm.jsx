@@ -1,4 +1,3 @@
-// src/pages/FillAssignedForm.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -6,14 +5,12 @@ import API from '../api/api.js';
 export default function FillAssignedForm() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
-    // Get the form
     API.get(`/api/admin/forms/${id}`)
       .then(res => {
         setForm(res.data);
@@ -23,20 +20,16 @@ export default function FillAssignedForm() {
           if (now > expiry) setIsExpired(true);
         }
       })
-      .catch(err => {
-        console.error('Error fetching form:', err);
-      });
+      .catch(console.error);
 
-    // Check if already submitted
-    API.get(`/api/user/forms/${id}/status`)
+    API.get(`/api/user/forms/${id}/response`)
       .then(res => {
-        if (res.data?.submitted) {
+        if (res.data?.answers) {
+          setAnswers(res.data.answers);
           setSubmitted(true);
         }
       })
-      .catch(err => {
-        console.warn('No status info found or not implemented:', err);
-      });
+      .catch(() => {});
   }, [id]);
 
   const handleChange = (qid, value) => {
@@ -57,8 +50,7 @@ export default function FillAssignedForm() {
       await API.post(`/api/user/forms/${id}/submit`, { answers });
       setSubmitted(true);
     } catch (err) {
-      console.error('Submission failed:', err);
-      alert('Error submitting form. Check console.');
+      console.error('Error submitting form:', err);
     }
   };
 
@@ -93,7 +85,7 @@ export default function FillAssignedForm() {
         <h2 className="text-3xl font-bold mb-2 text-blue-900">{form.title}</h2>
         <p className="mb-6 text-gray-700 italic">{form.description}</p>
 
-        {form.questions.map(q => (
+        {form.question.map(q => (
           <div key={q.id} className="mb-6 bg-white p-4 rounded shadow">
             <label className="font-semibold block mb-2 text-gray-800">{q.text}</label>
 
@@ -124,7 +116,7 @@ export default function FillAssignedForm() {
                       name={`q-${q.id}`}
                       value={opt}
                       checked={answers[q.id] === opt}
-                      onChange={() => handleChange(q.id, opt)}
+                      onChange={e => handleChange(q.id, opt)}
                     />
                     {opt}
                   </label>
