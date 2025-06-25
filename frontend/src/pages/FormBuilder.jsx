@@ -7,18 +7,18 @@ export default function FormBuilder() {
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const [description, setDesc] = useState('')
-  const [questions, setQuestions] = useState([])
+  const [question, setQuestion] = useState([])
   const [assignedEmployees, setAssignedEmployees] = useState([''])
 
   const addQuestion = () => {
-    setQuestions(qs => [
+    setQuestion(qs => [
       ...qs,
       { id: Date.now(), text: '', type: 'SHORT_ANSWER', options: [''] }
     ])
   }
 
   const updateQuestion = (id, key, value) => {
-    setQuestions(qs =>
+    setQuestion(qs =>
       qs.map(q =>
         q.id === id ? { ...q, [key]: value, ...(key === 'type' && value !== 'MULTIPLE_CHOICE' && value !== 'MULTI_SELECT' ? { options: [''] } : {}) } : q
       )
@@ -26,7 +26,7 @@ export default function FormBuilder() {
   }
 
   const updateOption = (qid, index, value) => {
-    setQuestions(qs =>
+    setQuestion(qs =>
       qs.map(q => {
         if (q.id === qid) {
           const newOpts = [...q.options]
@@ -39,13 +39,13 @@ export default function FormBuilder() {
   }
 
   const addOption = (qid) => {
-    setQuestions(qs =>
+    setQuestion(qs =>
       qs.map(q => (q.id === qid ? { ...q, options: [...q.options, ''] } : q))
     )
   }
 
   const removeOption = (qid, index) => {
-    setQuestions(qs =>
+    setQuestion(qs =>
       qs.map(q => {
         if (q.id === qid) {
           const newOpts = q.options.filter((_, i) => i !== index)
@@ -67,13 +67,18 @@ export default function FormBuilder() {
   }
 
   const submitForm = async () => {
-    await API.post('/admin/forms', {
-      title,
-      description,
-      questions,
-      assignedEmployees,
-    })
-    navigate('/admin')
+    try {
+      await API.post('/api/admin/forms/create', {
+        title,
+        description,
+        question,
+        targetUserIds: assignedEmployees,
+      })
+      navigate('/admin')
+    } catch (err) {
+      console.error('Error saving form:', err)
+      alert('Failed to save form.')
+    }
   }
 
   return (
@@ -100,7 +105,7 @@ export default function FormBuilder() {
           className="w-full mb-6 border p-2 rounded"
         />
 
-        {questions.map((q, i) => (
+        {question.map((q, i) => (
           <div key={q.id} className="mb-6 bg-white p-4 rounded shadow">
             <input
               value={q.text}
