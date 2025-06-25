@@ -358,4 +358,7 @@ export default function AssignedForms() {
     </div>
   );
 }
-
+//////
+SecurityContextHolder.getContext().setAuthentication(
+    new UsernamePasswordAuthenticationToken(user.getEmployeeId(), null, authorities)
+)
