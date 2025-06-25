@@ -1,88 +1,61 @@
-package com.example.feedback.controller;
+package com.yourproject.controller;
 
-import com.example.feedback.model.Form;
-import com.example.feedback.model.Response;
-import com.example.feedback.repository.FormRepository;
-import com.example.feedback.repository.ResponseRepository;
+import com.yourproject.model.Form;
+import com.yourproject.model.Response;
+import com.yourproject.repository.FormRepository;
+import com.yourproject.repository.ResponseRepository;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/user")
-@PreAuthorize("hasRole('USER')")
 public class UserController {
 
     @Autowired
-    private FormRepository formRepository;
+    private FormRepository formRepo;
 
     @Autowired
-    private ResponseRepository responseRepository;
+    private ResponseRepository responseRepo;
 
-    // ✅ 1. GET /api/user/forms/assigned - Get forms assigned to logged-in user
+    // ✅ API to get forms assigned to the logged-in user
     @GetMapping("/forms/assigned")
-    public ResponseEntity<?> getAssignedForms(Principal principal) {
-        String userId = principal.getName();
-        List<Form> forms = formRepository.findByTargetUserIdsContaining(userId);
-        return ResponseEntity.ok(forms);
+    public List<Form> getAssignedForms(Principal principal) {
+        String employeeId = principal.getName();
+        return formRepo.findAll().stream()
+                .filter(f -> f.getTargetUserIds().contains(employeeId))
+                .collect(Collectors.toList());
     }
 
-    // ✅ 2. GET /api/user/forms/{id} - Get full form details (if assigned)
-    @GetMapping("/forms/{id}")
-    public ResponseEntity<?> getFormById(@PathVariable String id, Principal principal) {
-        String userId = principal.getName();
-
-        Optional<Form> optionalForm = formRepository.findById(id);
+    // ✅ API to submit or update a form response
+    @PostMapping("/forms/{formId}/submit")
+    public ResponseEntity<?> submitResponse(@PathVariable String formId,
+                                            @RequestBody SubmitRequest req,
+                                            Principal principal) {
+        String employeeId = principal.getName();
+        Optional<Form> optionalForm = formRepo.findById(formId);
         if (optionalForm.isEmpty()) return ResponseEntity.notFound().build();
 
-        Form form = optionalForm.get();
-        if (!form.getTargetUserIds().contains(userId)) {
-            return ResponseEntity.status(403).body("You are not authorized to access this form.");
-        }
+        Response response = responseRepo.findByFormIdAndUserId(formId, employeeId)
+                .orElse(new Response());
 
-        return ResponseEntity.ok(form);
+        response.setFormId(formId);
+        response.setUserId(employeeId);
+        response.setAnswers(req.getAnswers());
+
+        responseRepo.save(response);
+        return ResponseEntity.ok("Response submitted successfully");
     }
 
-    // ✅ 3. POST /api/user/forms/{id}/submit - Submit form response
-    @PostMapping("/forms/{id}/submit")
-    public ResponseEntity<?> submitResponse(@PathVariable String id, @RequestBody Map<String, Object> request, Principal principal) {
-        String userId = principal.getName();
-
-        Optional<Form> optionalForm = formRepository.findById(id);
-        if (optionalForm.isEmpty()) return ResponseEntity.notFound().build();
-
-        Form form = optionalForm.get();
-        if (!form.getTargetUserIds().contains(userId)) {
-            return ResponseEntity.status(403).body("You are not authorized to submit this form.");
-        }
-
-        // Check if already submitted
-        Optional<Response> existing = responseRepository.findByFormIdAndUserId(id, userId);
-        if (existing.isPresent()) {
-            return ResponseEntity.status(400).body("You have already submitted this form.");
-        }
-
-        Map<String, Object> answers = (Map<String, Object>) request.get("answers");
-
-        Response response = new Response();
-        response.setFormId(id);
-        response.setUserId(userId);
-        response.setAnswers(answers);
-        response.setSubmittedAt(new Date());
-
-        responseRepository.save(response);
-        return ResponseEntity.ok("Response submitted successfully.");
-    }
-
-    // ✅ 4. GET /api/user/forms/{id}/response - Get previous submitted response if any
-    @GetMapping("/forms/{id}/response")
-    public ResponseEntity<?> getSubmittedResponse(@PathVariable String id, Principal principal) {
-        String userId = principal.getName();
-        Optional<Response> response = responseRepository.findByFormIdAndUserId(id, userId);
-        return response.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+    @Data
+    public static class SubmitRequest {
+        private Map<String, Object> answers;
     }
 }
