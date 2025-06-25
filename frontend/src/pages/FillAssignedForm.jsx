@@ -1,4 +1,4 @@
-// Enhanced FillAssignedForm.jsx with UI polish: header, shadow, branding
+// src/pages/FillAssignedForm.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -6,13 +6,15 @@ import API from '../api/api.js';
 export default function FillAssignedForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
-    API.get(`/admin/forms/${id}`)
+    // Get the form
+    API.get(`/api/admin/forms/${id}`)
       .then(res => {
         setForm(res.data);
         if (res.data.expiryDate) {
@@ -21,13 +23,20 @@ export default function FillAssignedForm() {
           if (now > expiry) setIsExpired(true);
         }
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error('Error fetching form:', err);
+      });
 
-    API.get(`/user/forms/${id}/response`)
+    // Check if already submitted
+    API.get(`/api/user/forms/${id}/status`)
       .then(res => {
-        if (res.data?.answers) setAnswers(res.data.answers);
+        if (res.data?.submitted) {
+          setSubmitted(true);
+        }
       })
-      .catch(() => {});
+      .catch(err => {
+        console.warn('No status info found or not implemented:', err);
+      });
   }, [id]);
 
   const handleChange = (qid, value) => {
@@ -45,10 +54,11 @@ export default function FillAssignedForm() {
 
   const handleSubmit = async () => {
     try {
-      await API.post(`/user/forms/${id}/response`, { answers });
+      await API.post(`/api/user/forms/${id}/submit`, { answers });
       setSubmitted(true);
     } catch (err) {
-      console.error(err);
+      console.error('Submission failed:', err);
+      alert('Error submitting form. Check console.');
     }
   };
 
@@ -114,7 +124,7 @@ export default function FillAssignedForm() {
                       name={`q-${q.id}`}
                       value={opt}
                       checked={answers[q.id] === opt}
-                      onChange={e => handleChange(q.id, opt)}
+                      onChange={() => handleChange(q.id, opt)}
                     />
                     {opt}
                   </label>
