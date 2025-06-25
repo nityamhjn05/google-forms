@@ -1,0 +1,6 @@
+@GetMapping("/forms/{id}/status")
+public Map<String, Boolean> checkSubmissionStatus(@PathVariable String id, Principal principal) {
+    String userId = principal.getName();
+    boolean submitted = responseRepository.existsByFormIdAndUserId(id, userId);
+    return Collections.singletonMap("submitted", submitted);
+}
