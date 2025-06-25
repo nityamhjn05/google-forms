@@ -1,3 +1,48 @@
+// === FormRepository.java ===
+package com.yourproject.repository;
+
+import com.yourproject.model.Form;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface FormRepository extends MongoRepository<Form, String> {
+}
+
+// === ResponseRepository.java ===
+package com.yourproject.repository;
+
+import com.yourproject.model.Response;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface ResponseRepository extends MongoRepository<Response, String> {
+    Optional<Response> findByFormIdAndUserId(String formId, String userId);
+}
+
+// === Response.java ===
+package com.yourproject.model;
+
+import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.util.Map;
+
+@Data
+@Document(collection = "responses")
+public class Response {
+    @Id
+    private String id;
+    private String formId;
+    private String userId;
+    private Map<String, Object> answers;
+}
+
+// === Updated UserController.java ===
 package com.yourproject.controller;
 
 import com.yourproject.model.Form;
@@ -25,7 +70,7 @@ public class UserController {
     @Autowired
     private ResponseRepository responseRepo;
 
-    // ✅ API to get forms assigned to the logged-in user
+    // Get assigned forms
     @GetMapping("/forms/assigned")
     public List<Form> getAssignedForms(Principal principal) {
         String employeeId = principal.getName();
@@ -34,18 +79,14 @@ public class UserController {
                 .collect(Collectors.toList());
     }
 
-    // ✅ API to submit or update a form response
+    // Submit or update response
     @PostMapping("/forms/{formId}/submit")
-    public ResponseEntity<?> submitResponse(@PathVariable String formId,
-                                            @RequestBody SubmitRequest req,
-                                            Principal principal) {
+    public ResponseEntity<?> submitResponse(@PathVariable String formId, @RequestBody SubmitRequest req, Principal principal) {
         String employeeId = principal.getName();
         Optional<Form> optionalForm = formRepo.findById(formId);
         if (optionalForm.isEmpty()) return ResponseEntity.notFound().build();
 
-        Response response = responseRepo.findByFormIdAndUserId(formId, employeeId)
-                .orElse(new Response());
-
+        Response response = responseRepo.findByFormIdAndUserId(formId, employeeId).orElse(new Response());
         response.setFormId(formId);
         response.setUserId(employeeId);
         response.setAnswers(req.getAnswers());
@@ -54,8 +95,72 @@ public class UserController {
         return ResponseEntity.ok("Response submitted successfully");
     }
 
+    // Check if user already submitted response for the form
+    @GetMapping("/forms/{formId}/submitted")
+    public boolean isFormSubmitted(@PathVariable String formId, Principal principal) {
+        String employeeId = principal.getName();
+        return responseRepo.findByFormIdAndUserId(formId, employeeId).isPresent();
+    }
+
     @Data
     public static class SubmitRequest {
         private Map<String, Object> answers;
     }
+}
+
+// === AssignedForms.jsx ===
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import API from '../api/api.js';
+
+export default function AssignedForms() {
+  const [forms, setForms] = useState([]);
+  const [submittedForms, setSubmittedForms] = useState([]);
+  const nav = useNavigate();
+
+  useEffect(() => {
+    API.get('/api/user/forms/assigned')
+      .then(async res => {
+        const assigned = res.data;
+        const submitted = await Promise.all(
+          assigned.map(async form => {
+            const check = await API.get(`/api/user/forms/${form.id}/submitted`);
+            return check.data ? form.id : null;
+          })
+        );
+        setForms(assigned);
+        setSubmittedForms(submitted.filter(Boolean));
+      })
+      .catch(console.error);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center gap-4">
+        <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
+        <h1 className="text-xl font-bold">Assigned Feedback Forms</h1>
+      </header>
+
+      <main className="p-8 max-w-3xl mx-auto">
+        <h2 className="text-2xl font-semibold mb-4 text-blue-900">Your Assigned Forms</h2>
+        <ul className="space-y-3">
+          {forms.map(f => (
+            <li key={f.id} className="bg-white p-4 shadow rounded flex justify-between items-center">
+              <span>{f.title}</span>
+              {submittedForms.includes(f.id) ? (
+                <span className="text-green-600 font-semibold">✔ Submitted</span>
+              ) : (
+                <button
+                  onClick={() => nav(`/user/fill/${f.id}`)}
+                  className="text-blue-700 underline hover:text-blue-900"
+                >
+                  Fill Now
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </main>
+    </div>
+  );
 }
