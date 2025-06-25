@@ -1,3 +1,4 @@
+// src/pages/FillAssignedForm.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -11,7 +12,7 @@ export default function FillAssignedForm() {
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
-    API.get(`/api/admin/forms/${id}`)
+    API.get(`/api/user/forms/${id}`)
       .then(res => {
         setForm(res.data);
         if (res.data.expiryDate) {
@@ -24,10 +25,7 @@ export default function FillAssignedForm() {
 
     API.get(`/api/user/forms/${id}/response`)
       .then(res => {
-        if (res.data?.answers) {
-          setAnswers(res.data.answers);
-          setSubmitted(true);
-        }
+        if (res.data?.answers) setAnswers(res.data.answers);
       })
       .catch(() => {});
   }, [id]);
@@ -50,7 +48,7 @@ export default function FillAssignedForm() {
       await API.post(`/api/user/forms/${id}/submit`, { answers });
       setSubmitted(true);
     } catch (err) {
-      console.error('Error submitting form:', err);
+      console.error(err);
     }
   };
 
@@ -85,7 +83,7 @@ export default function FillAssignedForm() {
         <h2 className="text-3xl font-bold mb-2 text-blue-900">{form.title}</h2>
         <p className="mb-6 text-gray-700 italic">{form.description}</p>
 
-        {form.question.map(q => (
+        {form.questions.map(q => (
           <div key={q.id} className="mb-6 bg-white p-4 rounded shadow">
             <label className="font-semibold block mb-2 text-gray-800">{q.text}</label>
 
