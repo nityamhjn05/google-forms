@@ -1,25 +1,15 @@
-// src/pages/AssignedForms.jsx (Updated for new endpoints and improved fallback)
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
 
 export default function AssignedForms() {
   const [forms, setForms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const nav = useNavigate();
 
   useEffect(() => {
     API.get('/api/user/forms/assigned')
-      .then(res => {
-        setForms(res.data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching assigned forms:', err);
-        setError('Failed to load assigned forms.');
-        setLoading(false);
-      });
+      .then(res => setForms(res.data))
+      .catch(err => console.error('Error fetching assigned forms:', err));
   }, []);
 
   return (
@@ -31,14 +21,6 @@ export default function AssignedForms() {
 
       <main className="p-8 max-w-3xl mx-auto">
         <h2 className="text-2xl font-semibold mb-4 text-blue-900">Your Assigned Forms</h2>
-
-        {loading && <p className="text-gray-600">Loading assigned forms...</p>}
-        {error && <p className="text-red-600">{error}</p>}
-
-        {!loading && forms.length === 0 && !error && (
-          <p className="text-gray-700">You currently have no assigned forms.</p>
-        )}
-
         <ul className="space-y-2">
           {forms.map(f => (
             <li key={f.id}>
