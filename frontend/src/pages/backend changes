@@ -122,6 +122,7 @@ public class UserController {
     }
 }
 // === FillAssignedForm.jsx ===
+// === FillAssignedForm.jsx ===
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api';
@@ -168,8 +169,13 @@ export default function FillAssignedForm() {
   };
 
   const handleSubmit = async () => {
-    await API.post(`/api/user/forms/${id}/submit`, { answers });
-    setSubmitted(true);
+    try {
+      await API.post(`/api/user/forms/${id}/submit`, { answers });
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Error submitting form", err);
+      alert("Submission failed. You may not have access.");
+    }
   };
 
   if (!form) return <div className="p-6">Loading...</div>;
@@ -257,7 +263,8 @@ export default function FillAssignedForm() {
       </main>
     </div>
   );
-} 
+}
+
 // === AssignedForms.jsx ===
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
