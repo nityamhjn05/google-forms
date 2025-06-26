@@ -30,7 +30,7 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.Map;
+import java.util.List;
 
 @Data
 @Document(collection = "responses")
@@ -39,12 +39,24 @@ public class Response {
     private String id;
     private String formId;
     private String userId;
-    private Map<String, Object> answers;
+    private List<Answer> answers;
+}
+
+// === Answer.java ===
+package com.yourproject.model;
+
+import lombok.Data;
+
+@Data
+public class Answer {
+    private String questionId;
+    private Object response;
 }
 
 // === Updated UserController.java ===
 package com.yourproject.controller;
 
+import com.yourproject.model.Answer;
 import com.yourproject.model.Form;
 import com.yourproject.model.Response;
 import com.yourproject.repository.FormRepository;
@@ -52,11 +64,10 @@ import com.yourproject.repository.ResponseRepository;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -72,17 +83,19 @@ public class UserController {
 
     // Get assigned forms
     @GetMapping("/forms/assigned")
-    public List<Form> getAssignedForms(Principal principal) {
-        String employeeId = principal.getName();
-        return formRepo.findAll().stream()
-                .filter(f -> f.getTargetUserIds().contains(employeeId))
-                .collect(Collectors.toList());
+    public ResponseEntity<List<Form>> getAssignedForms(Authentication authentication) {
+        String employeeId = authentication.getName();
+        List<Form> forms = formRepo.findAll().stream()
+            .filter(f -> f.getTargetUserIds() != null && f.getTargetUserIds().contains(employeeId))
+            .collect(Collectors.toList());
+
+        return ResponseEntity.ok(forms);
     }
 
     // Submit or update response
     @PostMapping("/forms/{formId}/submit")
-    public ResponseEntity<?> submitResponse(@PathVariable String formId, @RequestBody SubmitRequest req, Principal principal) {
-        String employeeId = principal.getName();
+    public ResponseEntity<?> submitResponse(@PathVariable String formId, @RequestBody SubmitRequest req, Authentication authentication) {
+        String employeeId = authentication.getName();
         Optional<Form> optionalForm = formRepo.findById(formId);
         if (optionalForm.isEmpty()) return ResponseEntity.notFound().build();
 
@@ -97,268 +110,14 @@ public class UserController {
 
     // Check if user already submitted response for the form
     @GetMapping("/forms/{formId}/submitted")
-    public boolean isFormSubmitted(@PathVariable String formId, Principal principal) {
-        String employeeId = principal.getName();
-        return responseRepo.findByFormIdAndUserId(formId, employeeId).isPresent();
+    public ResponseEntity<Boolean> isFormSubmitted(@PathVariable String formId, Authentication authentication) {
+        String employeeId = authentication.getName();
+        boolean submitted = responseRepo.findByFormIdAndUserId(formId, employeeId).isPresent();
+        return ResponseEntity.ok(submitted);
     }
 
     @Data
     public static class SubmitRequest {
-        private Map<String, Object> answers;
+        private List<Answer> answers;
     }
 }
-
-// === AssignedForms.jsx ===
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import API from '../api/api.js';
-
-export default function AssignedForms() {
-  const [forms, setForms] = useState([]);
-  const [submittedForms, setSubmittedForms] = useState([]);
-  const nav = useNavigate();
-
-  useEffect(() => {
-    API.get('/api/user/forms/assigned')
-      .then(async res => {
-        const assigned = res.data;
-        const submitted = await Promise.all(
-          assigned.map(async form => {
-            const check = await API.get(`/api/user/forms/${form.id}/submitted`);
-            return check.data ? form.id : null;
-          })
-        );
-        setForms(assigned);
-        setSubmittedForms(submitted.filter(Boolean));
-      })
-      .catch(console.error);
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center gap-4">
-        <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
-        <h1 className="text-xl font-bold">Assigned Feedback Forms</h1>
-      </header>
-
-      <main className="p-8 max-w-3xl mx-auto">
-        <h2 className="text-2xl font-semibold mb-4 text-blue-900">Your Assigned Forms</h2>
-        <ul className="space-y-3">
-          {forms.map(f => (
-            <li key={f.id} className="bg-white p-4 shadow rounded flex justify-between items-center">
-              <span>{f.title}</span>
-              {submittedForms.includes(f.id) ? (
-                <span className="text-green-600 font-semibold">✔ Submitted</span>
-              ) : (
-                <button
-                  onClick={() => nav(`/user/fill/${f.id}`)}
-                  className="text-blue-700 underline hover:text-blue-900"
-                >
-                  Fill Now
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </main>
-    </div>
-  );
-}
-//fillassignedform.jsx 
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import API from '../api/api.js';
-
-export default function FillAssignedForm() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [form, setForm] = useState(null);
-  const [answers, setAnswers] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-
-  useEffect(() => {
-    // Get the form structure
-    API.get('/api/user/forms/assigned')
-      .then(res => {
-        const thisForm = res.data.find(f => f.id === id);
-        if (thisForm) setForm(thisForm);
-        else setForm(null);
-      })
-      .catch(console.error);
-
-    // Check if user already submitted
-    API.get(`/api/user/forms/${id}/submitted`)
-      .then(res => {
-        if (res.data === true) {
-          setSubmitted(true);
-        }
-      })
-      .catch(() => {});
-  }, [id]);
-
-  const handleChange = (qid, value) => {
-    setAnswers({ ...answers, [qid]: value });
-  };
-
-  const handleMultiChange = (qid, value) => {
-    setAnswers(prev => {
-      const current = new Set(prev[qid] || []);
-      if (current.has(value)) current.delete(value);
-      else current.add(value);
-      return { ...prev, [qid]: Array.from(current) };
-    });
-  };
-
-  const handleSubmit = async () => {
-    try {
-      await API.post(`/api/user/forms/${id}/submit`, { answers });
-      setSubmitted(true);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  if (!form) return <div className="p-8">Loading form...</div>;
-
-  if (submitted) {
-    return (
-      <div className="p-8 text-center">
-        <h2 className="text-2xl font-bold text-green-700 mb-4">✅ You have already submitted this form!</h2>
-        <button onClick={() => navigate('/user')} className="text-blue-700 underline">
-          Go Back to Dashboard
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-900 text-white px-6 py-4 shadow-md">
-        <h1 className="text-xl font-bold">Coforge Feedback Form</h1>
-      </header>
-
-      <div className="p-8 max-w-3xl mx-auto">
-        <h2 className="text-3xl font-bold mb-2 text-blue-900">{form.title}</h2>
-        <p className="mb-6 text-gray-700 italic">{form.description}</p>
-
-        {form.question.map((q, index) => (
-          <div key={index} className="mb-6 bg-white p-4 rounded shadow">
-            <label className="font-semibold block mb-2 text-gray-800">{q.text}</label>
-
-            {q.type === 'SHORT_ANSWER' && (
-              <input
-                type="text"
-                className="w-full border border-gray-300 p-2 rounded"
-                value={answers[q.id] || ''}
-                onChange={e => handleChange(q.id, e.target.value)}
-              />
-            )}
-
-            {q.type === 'LONG_ANSWER' && (
-              <textarea
-                className="w-full border border-gray-300 p-2 rounded"
-                rows="4"
-                value={answers[q.id] || ''}
-                onChange={e => handleChange(q.id, e.target.value)}
-              />
-            )}
-
-            {q.type === 'MULTIPLE_CHOICE' && (
-              <div className="space-y-2">
-                {q.options.map((opt, idx) => (
-                  <label key={idx} className="flex items-center gap-2 text-gray-700">
-                    <input
-                      type="radio"
-                      name={`q-${q.id}`}
-                      value={opt}
-                      checked={answers[q.id] === opt}
-                      onChange={() => handleChange(q.id, opt)}
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {q.type === 'MULTI_SELECT' && (
-              <div className="space-y-2">
-                {q.options.map((opt, idx) => (
-                  <label key={idx} className="flex items-center gap-2 text-gray-700">
-                    <input
-                      type="checkbox"
-                      value={opt}
-                      checked={(answers[q.id] || []).includes(opt)}
-                      onChange={() => handleMultiChange(q.id, opt)}
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-
-        <button
-          onClick={handleSubmit}
-          className="bg-blue-900 text-white px-6 py-2 rounded hover:bg-blue-800 transition"
-        >
-          Submit Response
-        </button>
-      </div>
-    </div>
-  );
-}
-////////////////asssiiiignnnedddd
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import API from '../api/api.js';
-
-export default function AssignedForms() {
-  const [forms, setForms] = useState([]);
-  const nav = useNavigate();
-
-  useEffect(() => {
-    API.get('/api/user/forms/assigned')
-      .then(res => {
-        console.log('Assigned Forms:', res.data); // Debug log
-        setForms(res.data);
-      })
-      .catch(err => {
-        console.error('Error fetching assigned forms:', err);
-      });
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center gap-4">
-        <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
-        <h1 className="text-xl font-bold">Assigned Feedback Forms</h1>
-      </header>
-
-      <main className="p-8 max-w-3xl mx-auto">
-        <h2 className="text-2xl font-semibold mb-4 text-blue-900">Your Assigned Forms</h2>
-        {forms.length === 0 ? (
-          <p className="text-gray-500">No forms assigned to you.</p>
-        ) : (
-          <ul className="space-y-3">
-            {forms.map(f => (
-              <li key={f.id} className="bg-white p-4 shadow rounded flex justify-between items-center">
-                <span>{f.title}</span>
-                <button
-                  onClick={() => nav(`/user/fill/${f.id}`)}
-                  className="text-blue-700 underline hover:text-blue-900"
-                >
-                  Fill Now
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </main>
-    </div>
-  );
-}
-//////
-SecurityContextHolder.getContext().setAuthentication(
-    new UsernamePasswordAuthenticationToken(user.getEmployeeId(), null, authorities)
-)
