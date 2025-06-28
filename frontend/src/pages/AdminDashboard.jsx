@@ -1,4 +1,3 @@
-// Final version: Response viewing enhanced for clarity and better UI
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -16,14 +15,17 @@ export default function AdminDashboard() {
         .then(res => setResponses(res.data))
         .catch(console.error);
 
-      // Fetch all forms to map formId to form title and questions
-      API.get('/api/user/forms/assigned') // Or another admin endpoint if exists
+      // Fetch all forms (admin should have access to all forms anyway)
+      API.get('/api/user/forms/assigned')
         .then(res => {
           const formMap = {};
-          res.data.forEach(f => {
-            formMap[f.id] = { title: f.title, questions: {} };
-            f.question.forEach(q => {
-              formMap[f.id].questions[q.questionId] = q.text;
+          res.data.forEach(form => {
+            formMap[form.id] = {
+              title: form.title,
+              questions: {}
+            };
+            form.question.forEach(q => {
+              formMap[form.id].questions[q.questionId] = q.text;
             });
           });
           setFormsMap(formMap);
@@ -39,53 +41,67 @@ export default function AdminDashboard() {
         <h1 className="text-xl font-semibold">Admin Dashboard</h1>
       </header>
 
-      <main className="max-w-4xl mx-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <main className="max-w-6xl mx-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         <button
           onClick={() => navigate('/admin/create')}
           className="bg-blue-900 text-white rounded-lg shadow-lg p-6 hover:bg-blue-800 transition"
         >
-          Create Feedback Form
+          ➕ Create Feedback Form
         </button>
         <button
           onClick={() => setShowResponses(!showResponses)}
           className="bg-blue-900 text-white rounded-lg shadow-lg p-6 hover:bg-blue-800 transition"
         >
-          {showResponses ? 'Hide' : 'View'} Responses
+          {showResponses ? '🙈 Hide Responses' : '📄 View Responses'}
         </button>
       </main>
 
       {showResponses && (
-        <section className="max-w-4xl mx-auto px-8 pb-10">
-          <h2 className="text-2xl font-bold mb-6 text-blue-900">All Responses</h2>
-          <div className="space-y-6">
-            {responses.map(r => {
-              const formData = formsMap[r.formId] || {};
-              const questionsMap = formData.questions || {};
+        <section className="max-w-6xl mx-auto px-8 pb-12">
+          <h2 className="text-2xl font-bold mb-6 text-blue-900">📊 All Responses</h2>
 
-              return (
-                <div key={r.id} className="border p-6 rounded-lg bg-white shadow">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                    {formData.title || 'Form Title Not Found'}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-1">
-                    <strong>User ID:</strong> {r.userId}
-                  </p>
-                  <ul className="mt-3 space-y-2">
-                    {r.answers.map((ans, idx) => (
-                      <li key={idx} className="bg-gray-50 p-3 rounded border">
-                        <p className="text-sm font-medium text-gray-700">
-                          {questionsMap[ans.questionId] || `Question ID: ${ans.questionId}`}
-                        </p>
-                        <p className="text-gray-800 mt-1">
-                          {Array.isArray(ans.response) ? ans.response.join(', ') : ans.response}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
+          {responses.length === 0 ? (
+            <p className="text-gray-600 italic">No responses available yet.</p>
+          ) : (
+            <div className="space-y-6">
+              {responses.map((r, i) => {
+                const form = formsMap[r.formId] || {};
+                const questions = form.questions || {};
+
+                return (
+                  <div
+                    key={r.id || i}
+                    className="bg-white border rounded-xl shadow-md p-6 space-y-3"
+                  >
+                    <h3 className="text-lg font-semibold text-blue-800">
+                      📝 {form.title || 'Untitled Form'}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>User ID:</strong> {r.userId}
+                    </p>
+
+                    <ul className="space-y-3">
+                      {r.answers.map((ans, idx) => (
+                        <li
+                          key={idx}
+                          className="bg-gray-50 border rounded p-3"
+                        >
+                          <p className="text-sm font-medium text-gray-700 mb-1">
+                            {questions[ans.questionId] || `Question: ${ans.questionId}`}
+                          </p>
+                          <p className="text-gray-800">
+                            {Array.isArray(ans.response)
+                              ? ans.response.join(', ')
+                              : ans.response}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
     </div>
