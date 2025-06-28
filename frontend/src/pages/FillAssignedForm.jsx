@@ -29,9 +29,9 @@ export default function FillAssignedForm() {
       const updated = [...prev];
       const index = updated.findIndex(a => a.questionId === qid);
       if (index !== -1) {
-        updated[index].responses = value;
+        updated[index].response = value;
       } else {
-        updated.push({ questionId: qid, responses: value });
+        updated.push({ questionId: qid, response: value });
       }
       return updated;
     });
@@ -42,7 +42,7 @@ export default function FillAssignedForm() {
   };
 
   const handleMultiChange = (qid, val) => {
-    const current = answers.find(a => a.questionId === qid)?.responses || [];
+    const current = answers.find(a => a.questionId === qid)?.response || [];
     const newSet = new Set(current);
     newSet.has(val) ? newSet.delete(val) : newSet.add(val);
     updateAnswer(qid, Array.from(newSet));
