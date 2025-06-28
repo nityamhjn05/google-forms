@@ -1,4 +1,3 @@
-// === FillAssignedForm.jsx ===
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api';
@@ -24,16 +23,16 @@ export default function FillAssignedForm() {
       .catch(() => {});
   }, [id]);
 
-  const updateAnswer = (qid, value) => {
+  const updateAnswer = (questionId, responseArray) => {
     setAnswers(prev => {
-      const updated = [...prev];
-      const index = updated.findIndex(a => a.questionId === qid);
-      if (index !== -1) {
-        updated[index].response = value;
+      const existing = prev.find(a => a.questionId === questionId);
+      if (existing) {
+        return prev.map(a =>
+          a.questionId === questionId ? { ...a, response: responseArray } : a
+        );
       } else {
-        updated.push({ questionId: qid, response: value });
+        return [...prev, { questionId, response: responseArray }];
       }
-      return updated;
     });
   };
 
@@ -43,9 +42,9 @@ export default function FillAssignedForm() {
 
   const handleMultiChange = (qid, val) => {
     const current = answers.find(a => a.questionId === qid)?.response || [];
-    const newSet = new Set(current);
-    newSet.has(val) ? newSet.delete(val) : newSet.add(val);
-    updateAnswer(qid, Array.from(newSet));
+    const updatedSet = new Set(current);
+    updatedSet.has(val) ? updatedSet.delete(val) : updatedSet.add(val);
+    updateAnswer(qid, Array.from(updatedSet));
   };
 
   const handleSubmit = async () => {
