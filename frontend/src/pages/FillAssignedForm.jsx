@@ -24,24 +24,28 @@ export default function FillAssignedForm() {
       .catch(() => {});
   }, [id]);
 
-  const handleChange = (qid, value, isMulti) => {
+  const updateAnswer = (qid, value) => {
     setAnswers(prev => {
       const updated = [...prev];
       const index = updated.findIndex(a => a.questionId === qid);
       if (index !== -1) {
-        updated[index].response = isMulti ? value : [value];
+        updated[index].responses = value;
       } else {
-        updated.push({ questionId: qid, response: isMulti ? value : [value] });
+        updated.push({ questionId: qid, responses: value });
       }
       return updated;
     });
   };
 
+  const handleChange = (qid, value) => {
+    updateAnswer(qid, [value]);
+  };
+
   const handleMultiChange = (qid, val) => {
-    const current = answers.find(a => a.questionId === qid)?.response || [];
+    const current = answers.find(a => a.questionId === qid)?.responses || [];
     const newSet = new Set(current);
     newSet.has(val) ? newSet.delete(val) : newSet.add(val);
-    handleChange(qid, Array.from(newSet), true);
+    updateAnswer(qid, Array.from(newSet));
   };
 
   const handleSubmit = async () => {
