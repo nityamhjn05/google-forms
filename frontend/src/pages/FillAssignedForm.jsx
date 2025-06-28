@@ -29,16 +29,16 @@ export default function FillAssignedForm() {
       const updated = [...prev];
       const index = updated.findIndex(a => a.questionId === qid);
       if (index !== -1) {
-        updated[index].answer = isMulti ? value : [value];
+        updated[index].response = isMulti ? value : [value];
       } else {
-        updated.push({ questionId: qid, answer: isMulti ? value : [value] });
+        updated.push({ questionId: qid, response: isMulti ? value : [value] });
       }
       return updated;
     });
   };
 
   const handleMultiChange = (qid, val) => {
-    const current = answers.find(a => a.questionId === qid)?.answer || [];
+    const current = answers.find(a => a.questionId === qid)?.response || [];
     const newSet = new Set(current);
     newSet.has(val) ? newSet.delete(val) : newSet.add(val);
     handleChange(qid, Array.from(newSet), true);
@@ -46,10 +46,11 @@ export default function FillAssignedForm() {
 
   const handleSubmit = async () => {
     try {
-      await API.post(`/api/user/forms/${id}/submit`, answers); // ✅ Send as array
+      await API.post(`/api/user/forms/${id}/submit`, { answers });
       setSubmitted(true);
     } catch (err) {
-      console.error("Submission failed", err);
+      console.error("Error submitting form", err);
+      alert("Submission failed. You may not have access.");
     }
   };
 
