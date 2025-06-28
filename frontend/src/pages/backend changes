@@ -355,3 +355,33 @@ API.interceptors.response.use(
 export default API;
 
 
+//mongosh
+// Required for UUID generation
+function generateUUID() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11)
+    .replace(/[018]/g, c =>
+      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+}
+
+// Only needed in mongosh or environments without crypto
+if (typeof crypto === 'undefined') {
+  global.crypto = require('crypto').webcrypto;
+}
+
+db.forms.find().forEach(form => {
+  let modified = false;
+
+  form.question = form.question.map(q => {
+    if (!q.id || typeof q.id !== 'string' || q.id.startsWith("q-") || q.id === "undefined") {
+      q.id = generateUUID();
+      modified = true;
+    }
+    return q;
+  });
+
+  if (modified) {
+    db.forms.updateOne({ _id: form._id }, { $set: { question: form.question } });
+    print(`✅ Updated form: ${form._id}`);
+  }
+});
