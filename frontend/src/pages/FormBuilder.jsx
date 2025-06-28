@@ -1,70 +1,90 @@
-// UI-polished FormBuilder.jsx with branding and styling
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import API from '../api/api'
+// === FormBuilder.jsx ===
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
+import API from '../api/api';
 
 export default function FormBuilder() {
-  const navigate = useNavigate()
-  const [title, setTitle] = useState('')
-  const [description, setDesc] = useState('')
-  const [question, setQuestion] = useState([])
-  const [assignedEmployees, setAssignedEmployees] = useState([''])
+  const navigate = useNavigate();
+  const [title, setTitle] = useState('');
+  const [description, setDesc] = useState('');
+  const [question, setQuestion] = useState([]);
+  const [assignedEmployees, setAssignedEmployees] = useState(['']);
 
   const addQuestion = () => {
     setQuestion(qs => [
       ...qs,
-      { id: Date.now(), text: '', type: 'SHORT_ANSWER', options: [''] }
-    ])
-  }
+      {
+        questionId: uuidv4(),
+        text: '',
+        type: 'SHORT_ANSWER',
+        options: ['']
+      }
+    ]);
+  };
 
   const updateQuestion = (id, key, value) => {
     setQuestion(qs =>
       qs.map(q =>
-        q.id === id ? { ...q, [key]: value, ...(key === 'type' && value !== 'MULTIPLE_CHOICE' && value !== 'MULTI_SELECT' ? { options: [''] } : {}) } : q
+        q.questionId === id
+          ? {
+              ...q,
+              [key]: value,
+              ...(key === 'type' &&
+              value !== 'MULTIPLE_CHOICE' &&
+              value !== 'MULTI_SELECT'
+                ? { options: [''] }
+                : {})
+            }
+          : q
       )
-    )
-  }
+    );
+  };
 
   const updateOption = (qid, index, value) => {
     setQuestion(qs =>
       qs.map(q => {
-        if (q.id === qid) {
-          const newOpts = [...q.options]
-          newOpts[index] = value
-          return { ...q, options: newOpts }
+        if (q.questionId === qid) {
+          const newOpts = [...q.options];
+          newOpts[index] = value;
+          return { ...q, options: newOpts };
         }
-        return q
+        return q;
       })
-    )
-  }
+    );
+  };
 
-  const addOption = (qid) => {
+  const addOption = qid => {
     setQuestion(qs =>
-      qs.map(q => (q.id === qid ? { ...q, options: [...q.options, ''] } : q))
-    )
-  }
+      qs.map(q =>
+        q.questionId === qid
+          ? { ...q, options: [...q.options, ''] }
+          : q
+      )
+    );
+  };
 
   const removeOption = (qid, index) => {
     setQuestion(qs =>
       qs.map(q => {
-        if (q.id === qid) {
-          const newOpts = q.options.filter((_, i) => i !== index)
-          return { ...q, options: newOpts }
+        if (q.questionId === qid) {
+          const newOpts = q.options.filter((_, i) => i !== index);
+          return { ...q, options: newOpts };
         }
-        return q
+        return q;
       })
-    )
-  }
+    );
+  };
 
   const updateAssignedEmployee = (index, value) => {
-    const updated = [...assignedEmployees]
-    updated[index] = value
-    setAssignedEmployees(updated)
-  }
+    const updated = [...assignedEmployees];
+    updated[index] = value;
+    setAssignedEmployees(updated);
+  };
 
   const addAssignedEmployee = () => {
-    setAssignedEmployees([...assignedEmployees, ''])
-  }
+    setAssignedEmployees([...assignedEmployees, '']);
+  };
 
   const submitForm = async () => {
     try {
@@ -72,14 +92,14 @@ export default function FormBuilder() {
         title,
         description,
         question,
-        targetUserIds: assignedEmployees,
-      })
-      navigate('/admin')
+        targetUserIds: assignedEmployees
+      });
+      navigate('/admin');
     } catch (err) {
-      console.error('Error saving form:', err)
-      alert('Failed to save form.')
+      console.error('Error saving form:', err);
+      alert('Failed to save form.');
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,16 +126,16 @@ export default function FormBuilder() {
         />
 
         {question.map((q, i) => (
-          <div key={q.id} className="mb-6 bg-white p-4 rounded shadow">
+          <div key={q.questionId} className="mb-6 bg-white p-4 rounded shadow">
             <input
               value={q.text}
-              onChange={e => updateQuestion(q.id, 'text', e.target.value)}
+              onChange={e => updateQuestion(q.questionId, 'text', e.target.value)}
               placeholder={`Question ${i + 1}`}
               className="w-full mb-2 border p-2 rounded"
             />
             <select
               value={q.type}
-              onChange={e => updateQuestion(q.id, 'type', e.target.value)}
+              onChange={e => updateQuestion(q.questionId, 'type', e.target.value)}
               className="w-full mb-2 border p-2 rounded"
             >
               <option value="SHORT_ANSWER">Short Answer</option>
@@ -131,25 +151,40 @@ export default function FormBuilder() {
                     <input
                       type="text"
                       value={opt}
-                      onChange={e => updateOption(q.id, idx, e.target.value)}
+                      onChange={e => updateOption(q.questionId, idx, e.target.value)}
                       className="border p-2 flex-grow rounded"
                       placeholder={`Option ${idx + 1}`}
                     />
-                    <button onClick={() => removeOption(q.id, idx)} className="text-red-600">✕</button>
+                    <button
+                      onClick={() => removeOption(q.questionId, idx)}
+                      className="text-red-600"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
-                <button onClick={() => addOption(q.id)} className="text-blue-600">+ Add Option</button>
+                <button
+                  onClick={() => addOption(q.questionId)}
+                  className="text-blue-600"
+                >
+                  + Add Option
+                </button>
               </div>
             )}
           </div>
         ))}
 
-        <button onClick={addQuestion} className="bg-gray-200 px-4 py-2 rounded mb-6">
+        <button
+          onClick={addQuestion}
+          className="bg-gray-200 px-4 py-2 rounded mb-6"
+        >
           + Add Question
         </button>
 
         <div className="mb-6">
-          <h3 className="font-semibold mb-2">Assign to Employees (Employee IDs)</h3>
+          <h3 className="font-semibold mb-2">
+            Assign to Employees (Employee IDs)
+          </h3>
           {assignedEmployees.map((empId, i) => (
             <input
               key={i}
@@ -160,13 +195,21 @@ export default function FormBuilder() {
               placeholder="E.g. 123456"
             />
           ))}
-          <button onClick={addAssignedEmployee} className="text-blue-600">+ Add Employee</button>
+          <button
+            onClick={addAssignedEmployee}
+            className="text-blue-600"
+          >
+            + Add Employee
+          </button>
         </div>
 
-        <button onClick={submitForm} className="bg-blue-900 text-white px-6 py-2 rounded hover:bg-blue-800 transition">
+        <button
+          onClick={submitForm}
+          className="bg-blue-900 text-white px-6 py-2 rounded hover:bg-blue-800 transition"
+        >
           Save Form
         </button>
       </div>
     </div>
-  )
+  );
 }
