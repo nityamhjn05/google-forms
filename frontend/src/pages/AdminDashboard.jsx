@@ -1,3 +1,4 @@
+// === AdminDashboard.jsx ===
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -6,29 +7,40 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [responses, setResponses] = useState([]);
   const [formsMap, setFormsMap] = useState({});
+  const [groupedResponses, setGroupedResponses] = useState({});
   const [showResponses, setShowResponses] = useState(false);
 
   useEffect(() => {
     if (showResponses) {
-      // ✅ Fetch responses
-      API.get('/admin/forms/responses')
-        .then(res => setResponses(res.data))
-        .catch(console.error);
-
-      // ✅ Fetch all forms (admin-level, not /user route)
-      API.get('/admin/forms') // <-- Use your actual admin endpoint here
+      // Fetch all forms to map formId to title and questions
+      API.get('/api/admin/forms')
         .then(res => {
-          const formMap = {};
-          res.data.forEach(f => {
-            formMap[f.id] = {
-              title: f.title,
-              questions: {}
-            };
-            f.question.forEach(q => {
-              formMap[f.id].questions[q.questionId] = q.text;
+          if (Array.isArray(res.data)) {
+            const formMap = {};
+            res.data.forEach(f => {
+              formMap[f.id] = { title: f.title, questions: {} };
+              if (Array.isArray(f.question)) {
+                f.question.forEach(q => {
+                  formMap[f.id].questions[q.questionId] = q.text;
+                });
+              }
             });
-          });
-          setFormsMap(formMap);
+            setFormsMap(formMap);
+
+            // Now fetch responses for each form by ID
+            Promise.all(
+              res.data.map(f => API.get(`/api/admin/forms/${f.id}/responses`).then(r => r.data))
+            ).then(results => {
+              const allResponses = results.flat();
+              setResponses(allResponses);
+              const grouped = {};
+              allResponses.forEach(r => {
+                if (!grouped[r.userId]) grouped[r.userId] = [];
+                grouped[r.userId].push(r);
+              });
+              setGroupedResponses(grouped);
+            });
+          }
         })
         .catch(console.error);
     }
@@ -57,37 +69,29 @@ export default function AdminDashboard() {
       </main>
 
       {showResponses && (
-        <section className="max-w-4xl mx-auto px-8 pb-10">
-          <h2 className="text-2xl font-bold mb-6 text-blue-900">All Responses</h2>
-          <div className="space-y-6">
-            {responses.map(r => {
-              const formData = formsMap[r.formId] || {};
-              const questionsMap = formData.questions || {};
-
-              return (
-                <div key={r.id} className="border p-6 rounded-lg bg-white shadow">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                    {formData.title || `Form ID: ${r.formId}`}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-1">
-                    <strong>User ID:</strong> {r.userId}
-                  </p>
-                  <ul className="mt-3 space-y-2">
-                    {r.answers.map((ans, idx) => (
-                      <li key={idx} className="bg-gray-50 p-3 rounded border">
-                        <p className="text-sm font-medium text-gray-700">
-                          {questionsMap[ans.questionId] || `Question ID: ${ans.questionId}`}
-                        </p>
-                        <p className="text-gray-800 mt-1">
-                          {Array.isArray(ans.response) ? ans.response.join(', ') : ans.response}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
+        <section className="max-w-5xl mx-auto px-8 pb-10">
+          <h2 className="text-2xl font-bold mb-6 text-blue-900">Responses Grouped by User</h2>
+          {Object.entries(groupedResponses).map(([userId, userResponses]) => (
+            <div key={userId} className="mb-8 border p-6 rounded-lg bg-white shadow">
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">User ID: {userId}</h3>
+              {userResponses.map((r, index) => {
+                const form = formsMap[r.formId] || {};
+                const questions = form.questions || {};
+                return (
+                  <div key={index} className="mb-4">
+                    <h4 className="text-md font-bold text-gray-700 mb-1">Form: {form.title || 'Unknown Form'}</h4>
+                    <ul className="space-y-1 ml-4">
+                      {Array.isArray(r.answers) && r.answers.map((ans, idx) => (
+                        <li key={idx} className="text-sm">
+                          <span className="font-medium">{questions[ans.questionId] || `QID: ${ans.questionId}`}:</span> {Array.isArray(ans.response) ? ans.response.join(', ') : ans.response}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </section>
       )}
     </div>
