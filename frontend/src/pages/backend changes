@@ -385,3 +385,5 @@ db.forms.find().forEach(form => {
     print(`✅ Updated form: ${form._id}`);
   }
 });
+///fix
+db.forms.find({ "question.id": { $exists: false } }).count();
