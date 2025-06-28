@@ -13,7 +13,7 @@ export default function FillAssignedForm() {
   useEffect(() => {
     API.get(`/api/user/forms/assigned`)
       .then(res => {
-        const foundForm = res.data.find(f => f.id === id || f._id === id);
+        const foundForm = res.data.find(f => f.id === id);
         if (foundForm) setForm(foundForm);
         else console.error("Form not found in assigned list");
       })
@@ -24,33 +24,32 @@ export default function FillAssignedForm() {
       .catch(() => {});
   }, [id]);
 
-  const updateAnswer = (qid, valueArray) => {
-    if (!qid) {
+  const updateAnswer = (questionId, valueArray) => {
+    if (!questionId) {
       console.error("❌ Question ID is undefined during updateAnswer");
       return;
     }
-
     setAnswers(prev => {
       const updated = [...prev];
-      const index = updated.findIndex(a => a.questionId === qid);
+      const index = updated.findIndex(a => a.questionId === questionId);
       if (index !== -1) {
         updated[index].response = valueArray;
       } else {
-        updated.push({ questionId: qid, response: valueArray });
+        updated.push({ questionId: questionId, response: valueArray });
       }
       return updated;
     });
   };
 
-  const handleChange = (qid, value) => {
-    updateAnswer(qid, [value]);
+  const handleChange = (questionId, value) => {
+    updateAnswer(questionId, [value]);
   };
 
-  const handleMultiChange = (qid, val) => {
-    const current = answers.find(a => a.questionId === qid)?.response || [];
+  const handleMultiChange = (questionId, val) => {
+    const current = answers.find(a => a.questionId === questionId)?.response || [];
     const newSet = new Set(current);
     newSet.has(val) ? newSet.delete(val) : newSet.add(val);
-    updateAnswer(qid, Array.from(newSet));
+    updateAnswer(questionId, Array.from(newSet));
   };
 
   const handleSubmit = async () => {
@@ -58,7 +57,7 @@ export default function FillAssignedForm() {
       await API.post(`/api/user/forms/${id}/submit`, { answers });
       setSubmitted(true);
     } catch (err) {
-      console.error("❌ Error submitting form", err);
+      console.error("Error submitting form", err);
       alert("Submission failed. You may not have access.");
     }
   };
@@ -86,58 +85,62 @@ export default function FillAssignedForm() {
         <h2 className="text-3xl font-bold mb-4 text-blue-900">{form.title}</h2>
         <p className="mb-6 text-gray-600 italic">{form.description}</p>
 
-        {form.question.map(q => (
-          <div key={q.id || q._id} className="mb-6 bg-white p-4 rounded shadow">
-            <label className="block font-semibold mb-2">{q.text}</label>
+        {form.question.map((q, index) => {
+          const questionId = q.questionId || q.id || q._id || `q-${index}`;
 
-            {q.type === 'SHORT_ANSWER' && (
-              <input
-                type="text"
-                onChange={e => handleChange(q.id, e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            )}
+          return (
+            <div key={questionId} className="mb-6 bg-white p-4 rounded shadow">
+              <label className="block font-semibold mb-2">{q.text}</label>
 
-            {q.type === 'LONG_ANSWER' && (
-              <textarea
-                rows="4"
-                onChange={e => handleChange(q.id, e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            )}
+              {q.type === 'SHORT_ANSWER' && (
+                <input
+                  type="text"
+                  onChange={e => handleChange(questionId, e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+              )}
 
-            {q.type === 'MULTIPLE_CHOICE' && (
-              <div className="space-y-2">
-                {q.options.map(opt => (
-                  <label key={opt} className="flex gap-2">
-                    <input
-                      type="radio"
-                      name={`q-${q.id}`}
-                      value={opt}
-                      onChange={() => handleChange(q.id, opt)}
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            )}
+              {q.type === 'LONG_ANSWER' && (
+                <textarea
+                  rows="4"
+                  onChange={e => handleChange(questionId, e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+              )}
 
-            {q.type === 'MULTI_SELECT' && (
-              <div className="space-y-2">
-                {q.options.map(opt => (
-                  <label key={opt} className="flex gap-2">
-                    <input
-                      type="checkbox"
-                      value={opt}
-                      onChange={() => handleMultiChange(q.id, opt)}
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+              {q.type === 'MULTIPLE_CHOICE' && (
+                <div className="space-y-2">
+                  {q.options.map(opt => (
+                    <label key={opt} className="flex gap-2">
+                      <input
+                        type="radio"
+                        name={`q-${questionId}`}
+                        value={opt}
+                        onChange={() => handleChange(questionId, opt)}
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {q.type === 'MULTI_SELECT' && (
+                <div className="space-y-2">
+                  {q.options.map(opt => (
+                    <label key={opt} className="flex gap-2">
+                      <input
+                        type="checkbox"
+                        value={opt}
+                        onChange={() => handleMultiChange(questionId, opt)}
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         <button
           onClick={handleSubmit}
