@@ -1,99 +1,211 @@
-// === AdminDashboard.jsx ===
-import React, { useState, useEffect } from 'react';
+// === FormBuilder.jsx ===
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import API from '../api/api.js';
+import API from '../api/api';
 
-export default function AdminDashboard() {
+export default function FormBuilder() {
   const navigate = useNavigate();
-  const [responses, setResponses] = useState([]);
-  const [formsMap, setFormsMap] = useState({});
-  const [groupedResponses, setGroupedResponses] = useState({});
-  const [showResponses, setShowResponses] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDesc] = useState('');
+  const [question, setQuestion] = useState([]);
+  const [assignedEmployees, setAssignedEmployees] = useState(['']);
 
-  useEffect(() => {
-    if (showResponses) {
-      // Fetch all forms to map formId to title and questions
-      API.get('/api/admin/forms')
-        .then(res => {
-          if (Array.isArray(res.data)) {
-            const formMap = {};
-            res.data.forEach(f => {
-              formMap[f.id] = { title: f.title, questions: {} };
-              if (Array.isArray(f.question)) {
-                f.question.forEach(q => {
-                  formMap[f.id].questions[q.questionId] = q.text;
-                });
-              }
-            });
-            setFormsMap(formMap);
+  const generateQuestionId = () => 'q_' + Math.random().toString(36).substr(2, 9);
 
-            // Now fetch responses for each form by ID
-            Promise.all(
-              res.data.map(f => API.get(`/api/admin/forms/${f.id}/responses`).then(r => r.data))
-            ).then(results => {
-              const allResponses = results.flat();
-              setResponses(allResponses);
-              const grouped = {};
-              allResponses.forEach(r => {
-                if (!grouped[r.userId]) grouped[r.userId] = [];
-                grouped[r.userId].push(r);
-              });
-              setGroupedResponses(grouped);
-            });
-          }
-        })
-        .catch(console.error);
+  const addQuestion = () => {
+    setQuestion(qs => [
+      ...qs,
+      {
+        id: Date.now(),
+        questionId: generateQuestionId(), // 💡 add this
+        text: '',
+        type: 'SHORT_ANSWER',
+        options: ['']
+      }
+    ]);
+  };
+
+  const updateQuestion = (id, key, value) => {
+    setQuestion(qs =>
+      qs.map(q =>
+        q.id === id
+          ? {
+              ...q,
+              [key]: value,
+              ...(key === 'type' &&
+              value !== 'MULTIPLE_CHOICE' &&
+              value !== 'MULTI_SELECT'
+                ? { options: [''] }
+                : {})
+            }
+          : q
+      )
+    );
+  };
+
+  const updateOption = (qid, index, value) => {
+    setQuestion(qs =>
+      qs.map(q => {
+        if (q.id === qid) {
+          const newOpts = [...q.options];
+          newOpts[index] = value;
+          return { ...q, options: newOpts };
+        }
+        return q;
+      })
+    );
+  };
+
+  const addOption = (qid) => {
+    setQuestion(qs =>
+      qs.map(q => (q.id === qid ? { ...q, options: [...q.options, ''] } : q))
+    );
+  };
+
+  const removeOption = (qid, index) => {
+    setQuestion(qs =>
+      qs.map(q => {
+        if (q.id === qid) {
+          const newOpts = q.options.filter((_, i) => i !== index);
+          return { ...q, options: newOpts };
+        }
+        return q;
+      })
+    );
+  };
+
+  const updateAssignedEmployee = (index, value) => {
+    const updated = [...assignedEmployees];
+    updated[index] = value;
+    setAssignedEmployees(updated);
+  };
+
+  const addAssignedEmployee = () => {
+    setAssignedEmployees([...assignedEmployees, '']);
+  };
+
+  const submitForm = async () => {
+    try {
+      const sanitizedQuestions = question.map(q => ({
+        questionId: q.questionId || generateQuestionId(), // fallback if somehow missing
+        text: q.text,
+        type: q.type,
+        options:
+          q.type === 'MULTIPLE_CHOICE' || q.type === 'MULTI_SELECT'
+            ? q.options
+            : []
+      }));
+
+      await API.post('/api/admin/forms/create', {
+        title,
+        description,
+        question: sanitizedQuestions,
+        targetUserIds: assignedEmployees
+      });
+
+      navigate('/admin');
+    } catch (err) {
+      console.error('❌ Error saving form:', err);
+      alert('Failed to save form.');
     }
-  }, [showResponses]);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center gap-4">
         <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
-        <h1 className="text-xl font-semibold">Admin Dashboard</h1>
+        <h1 className="text-xl font-bold">Coforge Admin - Create Feedback Form</h1>
       </header>
 
-      <main className="max-w-4xl mx-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-        <button
-          onClick={() => navigate('/admin/create')}
-          className="bg-blue-900 text-white rounded-lg shadow-lg p-6 hover:bg-blue-800 transition"
-        >
-          Create Feedback Form
-        </button>
-        <button
-          onClick={() => setShowResponses(!showResponses)}
-          className="bg-blue-900 text-white rounded-lg shadow-lg p-6 hover:bg-blue-800 transition"
-        >
-          {showResponses ? 'Hide' : 'View'} Responses
-        </button>
-      </main>
+      <div className="p-8 max-w-4xl mx-auto">
+        <h2 className="text-3xl font-bold mb-2 text-blue-900">Create Feedback Form</h2>
 
-      {showResponses && (
-        <section className="max-w-5xl mx-auto px-8 pb-10">
-          <h2 className="text-2xl font-bold mb-6 text-blue-900">Responses Grouped by User</h2>
-          {Object.entries(groupedResponses).map(([userId, userResponses]) => (
-            <div key={userId} className="mb-8 border p-6 rounded-lg bg-white shadow">
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">User ID: {userId}</h3>
-              {userResponses.map((r, index) => {
-                const form = formsMap[r.formId] || {};
-                const questions = form.questions || {};
-                return (
-                  <div key={index} className="mb-4">
-                    <h4 className="text-md font-bold text-gray-700 mb-1">Form: {form.title || 'Unknown Form'}</h4>
-                    <ul className="space-y-1 ml-4">
-                      {Array.isArray(r.answers) && r.answers.map((ans, idx) => (
-                        <li key={idx} className="text-sm">
-                          <span className="font-medium">{questions[ans.questionId] || `QID: ${ans.questionId}`}:</span> {Array.isArray(ans.response) ? ans.response.join(', ') : ans.response}
-                        </li>
-                      ))}
-                    </ul>
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Form Title"
+          className="w-full mb-4 border p-2 rounded"
+        />
+
+        <textarea
+          value={description}
+          onChange={e => setDesc(e.target.value)}
+          placeholder="Form Description"
+          className="w-full mb-6 border p-2 rounded"
+        />
+
+        {question.map((q, i) => (
+          <div key={q.id} className="mb-6 bg-white p-4 rounded shadow">
+            <input
+              value={q.text}
+              onChange={e => updateQuestion(q.id, 'text', e.target.value)}
+              placeholder={`Question ${i + 1}`}
+              className="w-full mb-2 border p-2 rounded"
+            />
+
+            <select
+              value={q.type}
+              onChange={e => updateQuestion(q.id, 'type', e.target.value)}
+              className="w-full mb-2 border p-2 rounded"
+            >
+              <option value="SHORT_ANSWER">Short Answer</option>
+              <option value="LONG_ANSWER">Long Answer</option>
+              <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+              <option value="MULTI_SELECT">Multi Select</option>
+            </select>
+
+            {(q.type === 'MULTIPLE_CHOICE' || q.type === 'MULTI_SELECT') && (
+              <div className="pl-4">
+                {q.options.map((opt, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={opt}
+                      onChange={e => updateOption(q.id, idx, e.target.value)}
+                      className="border p-2 flex-grow rounded"
+                      placeholder={`Option ${idx + 1}`}
+                    />
+                    <button onClick={() => removeOption(q.id, idx)} className="text-red-600">
+                      ✕
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+                <button onClick={() => addOption(q.id)} className="text-blue-600">
+                  + Add Option
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <button onClick={addQuestion} className="bg-gray-200 px-4 py-2 rounded mb-6">
+          + Add Question
+        </button>
+
+        <div className="mb-6">
+          <h3 className="font-semibold mb-2">Assign to Employees (Employee IDs)</h3>
+          {assignedEmployees.map((empId, i) => (
+            <input
+              key={i}
+              type="text"
+              value={empId}
+              onChange={e => updateAssignedEmployee(i, e.target.value)}
+              className="w-full mb-2 border p-2 rounded"
+              placeholder="E.g. 123456"
+            />
           ))}
-        </section>
-      )}
+          <button onClick={addAssignedEmployee} className="text-blue-600">
+            + Add Employee
+          </button>
+        </div>
+
+        <button
+          onClick={submitForm}
+          className="bg-blue-900 text-white px-6 py-2 rounded hover:bg-blue-800 transition"
+        >
+          Save Form
+        </button>
+      </div>
     </div>
   );
 }
