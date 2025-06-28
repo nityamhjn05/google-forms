@@ -1,3 +1,4 @@
+// === FillAssignedForm.jsx ===
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api';
@@ -12,7 +13,7 @@ export default function FillAssignedForm() {
   useEffect(() => {
     API.get(`/api/user/forms/assigned`)
       .then(res => {
-        const foundForm = res.data.find(f => f.id === id);
+        const foundForm = res.data.find(f => f.id === id || f._id === id);
         if (foundForm) setForm(foundForm);
         else console.error("Form not found in assigned list");
       })
@@ -23,16 +24,21 @@ export default function FillAssignedForm() {
       .catch(() => {});
   }, [id]);
 
-  const updateAnswer = (questionId, responseArray) => {
+  const updateAnswer = (qid, valueArray) => {
+    if (!qid) {
+      console.error("❌ Question ID is undefined during updateAnswer");
+      return;
+    }
+
     setAnswers(prev => {
-      const existing = prev.find(a => a.questionId === questionId);
-      if (existing) {
-        return prev.map(a =>
-          a.questionId === questionId ? { ...a, response: responseArray } : a
-        );
+      const updated = [...prev];
+      const index = updated.findIndex(a => a.questionId === qid);
+      if (index !== -1) {
+        updated[index].response = valueArray;
       } else {
-        return [...prev, { questionId, response: responseArray }];
+        updated.push({ questionId: qid, response: valueArray });
       }
+      return updated;
     });
   };
 
@@ -42,9 +48,9 @@ export default function FillAssignedForm() {
 
   const handleMultiChange = (qid, val) => {
     const current = answers.find(a => a.questionId === qid)?.response || [];
-    const updatedSet = new Set(current);
-    updatedSet.has(val) ? updatedSet.delete(val) : updatedSet.add(val);
-    updateAnswer(qid, Array.from(updatedSet));
+    const newSet = new Set(current);
+    newSet.has(val) ? newSet.delete(val) : newSet.add(val);
+    updateAnswer(qid, Array.from(newSet));
   };
 
   const handleSubmit = async () => {
@@ -52,7 +58,7 @@ export default function FillAssignedForm() {
       await API.post(`/api/user/forms/${id}/submit`, { answers });
       setSubmitted(true);
     } catch (err) {
-      console.error("Error submitting form", err);
+      console.error("❌ Error submitting form", err);
       alert("Submission failed. You may not have access.");
     }
   };
@@ -81,7 +87,7 @@ export default function FillAssignedForm() {
         <p className="mb-6 text-gray-600 italic">{form.description}</p>
 
         {form.question.map(q => (
-          <div key={q.id} className="mb-6 bg-white p-4 rounded shadow">
+          <div key={q.id || q._id} className="mb-6 bg-white p-4 rounded shadow">
             <label className="block font-semibold mb-2">{q.text}</label>
 
             {q.type === 'SHORT_ANSWER' && (
