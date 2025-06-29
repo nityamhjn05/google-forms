@@ -9,7 +9,7 @@ export default function FormBuilder() {
   const [title, setTitle] = useState('');
   const [description, setDesc] = useState('');
   const [question, setQuestion] = useState([]);
-  const [assignedEmployees, setAssignedEmployees] = useState(['']);
+  const [assignedEmails, setAssignedEmails] = useState(['']);
 
   const addQuestion = () => {
     setQuestion(qs => [
@@ -18,6 +18,7 @@ export default function FormBuilder() {
         questionId: uuidv4(),
         text: '',
         type: 'SHORT_ANSWER',
+        required: false,
         options: ['']
       }
     ]);
@@ -30,7 +31,10 @@ export default function FormBuilder() {
           ? {
               ...q,
               [key]: value,
-              ...(key === 'type' && value !== 'MULTIPLE_CHOICE' ? { options: [''] } : {})
+              ...(key === 'type' &&
+              value !== 'MULTIPLE_CHOICE'
+                ? { options: [''] }
+                : {})
             }
           : q
       )
@@ -72,14 +76,14 @@ export default function FormBuilder() {
     );
   };
 
-  const updateAssignedEmployee = (index, value) => {
-    const updated = [...assignedEmployees];
+  const updateAssignedEmail = (index, value) => {
+    const updated = [...assignedEmails];
     updated[index] = value;
-    setAssignedEmployees(updated);
+    setAssignedEmails(updated);
   };
 
-  const addAssignedEmployee = () => {
-    setAssignedEmployees([...assignedEmployees, '']);
+  const addAssignedEmail = () => {
+    setAssignedEmails([...assignedEmails, '']);
   };
 
   const submitForm = async () => {
@@ -88,7 +92,7 @@ export default function FormBuilder() {
         title,
         description,
         question,
-        targetUserIds: assignedEmployees
+        targetEmails: assignedEmails
       });
       navigate('/admin');
     } catch (err) {
@@ -139,7 +143,7 @@ export default function FormBuilder() {
               <option value="MULTIPLE_CHOICE">Multiple Choice</option>
             </select>
 
-            {q.type === 'MULTIPLE_CHOICE' && (
+            {(q.type === 'MULTIPLE_CHOICE') && (
               <div className="pl-4">
                 {q.options.map((opt, idx) => (
                   <div key={idx} className="flex gap-2 mb-2">
@@ -166,6 +170,18 @@ export default function FormBuilder() {
                 </button>
               </div>
             )}
+
+            <div className="mt-2">
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={q.required}
+                  onChange={e => updateQuestion(q.questionId, 'required', e.target.checked)}
+                  className="mr-2"
+                />
+                Required
+              </label>
+            </div>
           </div>
         ))}
 
@@ -178,23 +194,23 @@ export default function FormBuilder() {
 
         <div className="mb-6">
           <h3 className="font-semibold mb-2">
-            Assign to Employees (Employee IDs)
+            Assign to Users (Email IDs)
           </h3>
-          {assignedEmployees.map((empId, i) => (
+          {assignedEmails.map((email, i) => (
             <input
               key={i}
-              type="text"
-              value={empId}
-              onChange={e => updateAssignedEmployee(i, e.target.value)}
+              type="email"
+              value={email}
+              onChange={e => updateAssignedEmail(i, e.target.value)}
               className="w-full mb-2 border p-2 rounded"
-              placeholder="E.g. 123456"
+              placeholder="E.g. user@example.com"
             />
           ))}
           <button
-            onClick={addAssignedEmployee}
+            onClick={addAssignedEmail}
             className="text-blue-600"
           >
-            + Add Employee
+            + Add Email
           </button>
         </div>
 
