@@ -1,4 +1,3 @@
-// === FillAssignedForm.jsx ===
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/api';
@@ -11,11 +10,14 @@ export default function FillAssignedForm() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    API.get(`/api/user/forms/assigned`)
+    API.get('/api/user/forms/assigned')
       .then(res => {
         const foundForm = res.data.find(f => f.id === id);
-        if (foundForm) setForm(foundForm);
-        else console.error("Form not found in assigned list");
+        if (foundForm && Array.isArray(foundForm.question)) {
+          setForm(foundForm);
+        } else {
+          console.error("Form not found or has no questions");
+        }
       })
       .catch(err => console.error("Error fetching assigned forms", err));
 
@@ -24,32 +26,22 @@ export default function FillAssignedForm() {
       .catch(() => {});
   }, [id]);
 
-  const updateAnswer = (questionId, valueArray) => {
-    if (!questionId) {
-      console.error("❌ Question ID is undefined during updateAnswer");
+  const handleChange = (qid, value) => {
+    if (!qid) {
+      console.error("❌ Question ID is undefined during handleChange");
       return;
     }
+
     setAnswers(prev => {
       const updated = [...prev];
-      const index = updated.findIndex(a => a.questionId === questionId);
+      const index = updated.findIndex(a => a.questionId === qid);
       if (index !== -1) {
-        updated[index].response = valueArray;
+        updated[index].response = [value];
       } else {
-        updated.push({ questionId, response: valueArray });
+        updated.push({ questionId: qid, response: [value] });
       }
       return updated;
     });
-  };
-
-  const handleSingleChange = (qid, value) => {
-    updateAnswer(qid, [value]);
-  };
-
-  const handleMultiChange = (qid, val) => {
-    const current = answers.find(a => a.questionId === qid)?.response || [];
-    const newSet = new Set(current);
-    newSet.has(val) ? newSet.delete(val) : newSet.add(val);
-    updateAnswer(qid, Array.from(newSet));
   };
 
   const handleSubmit = async () => {
@@ -85,43 +77,47 @@ export default function FillAssignedForm() {
         <h2 className="text-3xl font-bold mb-4 text-blue-900">{form.title}</h2>
         <p className="mb-6 text-gray-600 italic">{form.description}</p>
 
-        {form.question.map(q => (
-          <div key={q.questionId} className="mb-6 bg-white p-4 rounded shadow">
-            <label className="block font-semibold mb-2">{q.text}</label>
+        {Array.isArray(form.question) ? (
+          form.question.map(q => (
+            <div key={q.questionId} className="mb-6 bg-white p-4 rounded shadow">
+              <label className="block font-semibold mb-2">{q.text}</label>
 
-            {q.type === 'SHORT_ANSWER' && (
-              <input
-                type="text"
-                onChange={e => handleSingleChange(q.questionId, e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            )}
+              {q.type === 'SHORT_ANSWER' && (
+                <input
+                  type="text"
+                  onChange={e => handleChange(q.questionId, e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+              )}
 
-            {q.type === 'LONG_ANSWER' && (
-              <textarea
-                rows="4"
-                onChange={e => handleSingleChange(q.questionId, e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            )}
+              {q.type === 'LONG_ANSWER' && (
+                <textarea
+                  rows="4"
+                  onChange={e => handleChange(q.questionId, e.target.value)}
+                  className="w-full border p-2 rounded"
+                />
+              )}
 
-            {q.type === 'MULTIPLE_CHOICE' && (
-              <div className="space-y-2">
-                {q.options.map(opt => (
-                  <label key={opt} className="flex gap-2">
-                    <input
-                      type="radio"
-                      name={`q-${q.questionId}`}
-                      value={opt}
-                      onChange={() => handleSingleChange(q.questionId, opt)}
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+              {q.type === 'MULTIPLE_CHOICE' && (
+                <div className="space-y-2">
+                  {q.options?.map(opt => (
+                    <label key={opt} className="flex gap-2">
+                      <input
+                        type="radio"
+                        name={`q-${q.questionId}`}
+                        value={opt}
+                        onChange={() => handleChange(q.questionId, opt)}
+                      />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="text-red-600">⚠️ No questions available in this form.</div>
+        )}
 
         <button
           onClick={handleSubmit}
