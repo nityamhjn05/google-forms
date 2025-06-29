@@ -546,3 +546,40 @@ public class UserController {
         private List<Answer> answers;
     }
 }
+/////
+@PostMapping("/forms/{formId}/submit")
+public ResponseEntity<?> submitResponse(@PathVariable String formId, @RequestBody SubmitRequest req, Authentication authentication) {
+    String employeeId = authentication.getName();
+    Optional<Form> optionalForm = formRepo.findById(formId);
+
+    if (optionalForm.isEmpty()) {
+        return ResponseEntity.notFound().build();
+    }
+
+    Form form = optionalForm.get();
+    List<Answer> submittedAnswers = req.getAnswers();
+
+    // Validate required questions
+    List<String> missingRequiredQuestions = form.getQuestion().stream()
+        .filter(q -> Boolean.TRUE.equals(q.getRequired()))
+        .filter(q -> submittedAnswers.stream().noneMatch(a ->
+            a.getQuestionId().equals(q.getQuestionId()) &&
+            a.getResponse() != null &&
+            (! (a.getResponse() instanceof String) || !((String) a.getResponse()).trim().isEmpty())
+        ))
+        .map(q -> q.getText()) // Optional: include question text for easier debugging
+        .collect(Collectors.toList());
+
+    if (!missingRequiredQuestions.isEmpty()) {
+        return ResponseEntity.badRequest().body("Missing required answers for: " + missingRequiredQuestions);
+    }
+
+    // Save or update response
+    Response response = responseRepo.findByFormIdAndUserId(formId, employeeId).orElse(new Response());
+    response.setFormId(formId);
+    response.setUserId(employeeId);
+    response.setAnswers(submittedAnswers);
+
+    responseRepo.save(response);
+    return ResponseEntity.ok("Response submitted successfully");
+}
