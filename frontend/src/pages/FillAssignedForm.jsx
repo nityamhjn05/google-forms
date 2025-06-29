@@ -24,23 +24,32 @@ export default function FillAssignedForm() {
       .catch(() => {});
   }, [id]);
 
-  const handleChange = (questionId, value) => {
-    const updated = answers.filter(a => a.questionId !== questionId);
-    updated.push({ questionId, response: [value] });
-    setAnswers(updated);
+  const updateAnswer = (questionId, valueArray) => {
+    if (!questionId) {
+      console.error("❌ Question ID is undefined during updateAnswer");
+      return;
+    }
+    setAnswers(prev => {
+      const updated = [...prev];
+      const index = updated.findIndex(a => a.questionId === questionId);
+      if (index !== -1) {
+        updated[index].response = valueArray;
+      } else {
+        updated.push({ questionId, response: valueArray });
+      }
+      return updated;
+    });
   };
 
-  const handleMultiChange = (questionId, val) => {
-    const current = answers.find(a => a.questionId === questionId)?.response || [];
+  const handleSingleChange = (qid, value) => {
+    updateAnswer(qid, [value]);
+  };
+
+  const handleMultiChange = (qid, val) => {
+    const current = answers.find(a => a.questionId === qid)?.response || [];
     const newSet = new Set(current);
-    if (newSet.has(val)) {
-      newSet.delete(val);
-    } else {
-      newSet.add(val);
-    }
-    const updated = answers.filter(a => a.questionId !== questionId);
-    updated.push({ questionId, response: Array.from(newSet) });
-    setAnswers(updated);
+    newSet.has(val) ? newSet.delete(val) : newSet.add(val);
+    updateAnswer(qid, Array.from(newSet));
   };
 
   const handleSubmit = async () => {
@@ -83,7 +92,7 @@ export default function FillAssignedForm() {
             {q.type === 'SHORT_ANSWER' && (
               <input
                 type="text"
-                onChange={e => handleChange(q.questionId, e.target.value)}
+                onChange={e => handleSingleChange(q.questionId, e.target.value)}
                 className="w-full border p-2 rounded"
               />
             )}
@@ -91,7 +100,7 @@ export default function FillAssignedForm() {
             {q.type === 'LONG_ANSWER' && (
               <textarea
                 rows="4"
-                onChange={e => handleChange(q.questionId, e.target.value)}
+                onChange={e => handleSingleChange(q.questionId, e.target.value)}
                 className="w-full border p-2 rounded"
               />
             )}
@@ -104,30 +113,11 @@ export default function FillAssignedForm() {
                       type="radio"
                       name={`q-${q.questionId}`}
                       value={opt}
-                      onChange={() => handleChange(q.questionId, opt)}
+                      onChange={() => handleSingleChange(q.questionId, opt)}
                     />
                     {opt}
                   </label>
                 ))}
-              </div>
-            )}
-
-            {q.type === 'MULTI_SELECT' && (
-              <div className="space-y-2">
-                {q.options.map(opt => {
-                  const current = answers.find(a => a.questionId === q.questionId)?.response || [];
-                  return (
-                    <label key={opt} className="flex gap-2">
-                      <input
-                        type="checkbox"
-                        value={opt}
-                        checked={current.includes(opt)}
-                        onChange={() => handleMultiChange(q.questionId, opt)}
-                      />
-                      {opt}
-                    </label>
-                  );
-                })}
               </div>
             )}
           </div>
