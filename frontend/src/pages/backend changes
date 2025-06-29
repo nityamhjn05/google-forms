@@ -412,3 +412,42 @@ public ResponseEntity<?> createForm(@RequestBody FormCreationRequest req) {
 
     return ResponseEntity.ok("Form created and assigned via emails");
 }
+//usercontroller 
+@PostMapping("/forms/{formId}/submit")
+public ResponseEntity<?> submitResponse(
+    @PathVariable String formId,
+    @RequestBody SubmitRequest req,
+    Authentication authentication
+) {
+    String employeeId = authentication.getName();
+
+    Optional<Form> optionalForm = formRepo.findById(formId);
+    if (optionalForm.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Form not found");
+    }
+
+    Form form = optionalForm.get();
+
+    // Required field check
+    Set<String> answeredQIds = req.getAnswers().stream()
+        .map(Answer::getQuestionId)
+        .collect(Collectors.toSet());
+
+    List<String> missingRequired = form.getQuestion().stream()
+        .filter(q -> q.isRequired() && !answeredQIds.contains(q.getQuestionId()))
+        .map(Question::getText)
+        .collect(Collectors.toList());
+
+    if (!missingRequired.isEmpty()) {
+        return ResponseEntity.badRequest().body("Missing required answers: " + missingRequired);
+    }
+
+    // Proceed with saving
+    Responses response = responseRepo.findByFormIdAndUserId(formId, employeeId).orElse(new Responses());
+    response.setFormId(formId);
+    response.setUserId(employeeId);
+    response.setAnswers(req.getAnswers());
+    responseRepo.save(response);
+
+    return ResponseEntity.ok("Response submitted successfully");
+}
