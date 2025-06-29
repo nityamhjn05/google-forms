@@ -1,4 +1,3 @@
-// === FormBuilder.jsx ===
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,7 +8,7 @@ export default function FormBuilder() {
   const [title, setTitle] = useState('');
   const [description, setDesc] = useState('');
   const [question, setQuestion] = useState([]);
-  const [assignedEmails, setAssignedEmails] = useState(['']);
+  const [assignedEmployees, setAssignedEmployees] = useState(['']);
 
   const addQuestion = () => {
     setQuestion(qs => [
@@ -18,8 +17,8 @@ export default function FormBuilder() {
         questionId: uuidv4(),
         text: '',
         type: 'SHORT_ANSWER',
-        required: false,
-        options: ['']
+        options: [''],
+        required: false // default value
       }
     ]);
   };
@@ -33,8 +32,8 @@ export default function FormBuilder() {
               [key]: value,
               ...(key === 'type' &&
               value !== 'MULTIPLE_CHOICE'
-                ? { options: [''] }
-                : {})
+              ? { options: [''] }
+              : {})
             }
           : q
       )
@@ -76,14 +75,14 @@ export default function FormBuilder() {
     );
   };
 
-  const updateAssignedEmail = (index, value) => {
-    const updated = [...assignedEmails];
+  const updateAssignedEmployee = (index, value) => {
+    const updated = [...assignedEmployees];
     updated[index] = value;
-    setAssignedEmails(updated);
+    setAssignedEmployees(updated);
   };
 
-  const addAssignedEmail = () => {
-    setAssignedEmails([...assignedEmails, '']);
+  const addAssignedEmployee = () => {
+    setAssignedEmployees([...assignedEmployees, '']);
   };
 
   const submitForm = async () => {
@@ -92,7 +91,7 @@ export default function FormBuilder() {
         title,
         description,
         question,
-        targetEmails: assignedEmails
+        targetUserIds: assignedEmployees
       });
       navigate('/admin');
     } catch (err) {
@@ -103,13 +102,13 @@ export default function FormBuilder() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center gap-4">
+      <header className="flex items-center gap-4 px-6 py-4">
         <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
         <h1 className="text-xl font-bold">Coforge Admin - Create Feedback Form</h1>
       </header>
 
       <div className="p-8 max-w-4xl mx-auto">
-        <h2 className="text-3xl font-bold mb-2 text-blue-900">Create Feedback Form</h2>
+        <h2 className="text-3xl font-bold mb-4 text-blue-900">Create Feedback Form</h2>
 
         <input
           value={title}
@@ -171,13 +170,12 @@ export default function FormBuilder() {
               </div>
             )}
 
-            <div className="mt-2">
-              <label className="inline-flex items-center">
+            <div className="mt-3">
+              <label className="text-sm text-gray-700 flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={q.required}
                   onChange={e => updateQuestion(q.questionId, 'required', e.target.checked)}
-                  className="mr-2"
                 />
                 Required
               </label>
@@ -194,23 +192,23 @@ export default function FormBuilder() {
 
         <div className="mb-6">
           <h3 className="font-semibold mb-2">
-            Assign to Users (Email IDs)
+            Assign to Employees (Employee IDs)
           </h3>
-          {assignedEmails.map((email, i) => (
+          {assignedEmployees.map((empId, i) => (
             <input
               key={i}
-              type="email"
-              value={email}
-              onChange={e => updateAssignedEmail(i, e.target.value)}
+              type="text"
+              value={empId}
+              onChange={e => updateAssignedEmployee(i, e.target.value)}
               className="w-full mb-2 border p-2 rounded"
-              placeholder="E.g. user@example.com"
+              placeholder="E.g. 123456"
             />
           ))}
           <button
-            onClick={addAssignedEmail}
+            onClick={addAssignedEmployee}
             className="text-blue-600"
           >
-            + Add Email
+            + Add Employee
           </button>
         </div>
 
