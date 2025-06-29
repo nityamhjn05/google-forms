@@ -387,3 +387,28 @@ db.forms.find().forEach(form => {
 });
 ///fix
 db.forms.find({ "question.id": { $exists: false } }).count();
+//the targetids one 
+public class FormCreationRequest {
+    private String title;
+    private String description;
+    private List<Question> question;
+    private List<String> targetEmails; // <-- changed from targetUserIds
+
+    // getters and setters
+}
+//admincontroller 
+@PostMapping("/forms/create")
+public ResponseEntity<?> createForm(@RequestBody FormCreationRequest req) {
+    Form form = new Form();
+    form.setTitle(req.getTitle());
+    form.setDescription(req.getDescription());
+    form.setQuestion(req.getQuestion());
+
+    // Assign by email
+    List<User> targetUsers = userRepository.findByEmailIn(req.getTargetEmails());
+    form.setTargetUsers(targetUsers);
+
+    formRepository.save(form);
+
+    return ResponseEntity.ok("Form created and assigned via emails");
+}
