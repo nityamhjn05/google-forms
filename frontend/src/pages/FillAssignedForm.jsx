@@ -24,32 +24,23 @@ export default function FillAssignedForm() {
       .catch(() => {});
   }, [id]);
 
-  const updateAnswer = (questionId, valueArray) => {
-    if (!questionId) {
-      console.error("❌ Question ID is undefined during updateAnswer");
-      return;
-    }
-    setAnswers(prev => {
-      const updated = [...prev];
-      const index = updated.findIndex(a => a.questionId === questionId);
-      if (index !== -1) {
-        updated[index].response = valueArray;
-      } else {
-        updated.push({ questionId: questionId, response: valueArray });
-      }
-      return updated;
-    });
-  };
-
   const handleChange = (questionId, value) => {
-    updateAnswer(questionId, [value]);
+    const updated = answers.filter(a => a.questionId !== questionId);
+    updated.push({ questionId, response: [value] });
+    setAnswers(updated);
   };
 
   const handleMultiChange = (questionId, val) => {
     const current = answers.find(a => a.questionId === questionId)?.response || [];
     const newSet = new Set(current);
-    newSet.has(val) ? newSet.delete(val) : newSet.add(val);
-    updateAnswer(questionId, Array.from(newSet));
+    if (newSet.has(val)) {
+      newSet.delete(val);
+    } else {
+      newSet.add(val);
+    }
+    const updated = answers.filter(a => a.questionId !== questionId);
+    updated.push({ questionId, response: Array.from(newSet) });
+    setAnswers(updated);
   };
 
   const handleSubmit = async () => {
@@ -85,62 +76,62 @@ export default function FillAssignedForm() {
         <h2 className="text-3xl font-bold mb-4 text-blue-900">{form.title}</h2>
         <p className="mb-6 text-gray-600 italic">{form.description}</p>
 
-        {form.question.map((q, index) => {
-          const questionId = q.questionId || q.id || q._id || `q-${index}`;
+        {form.question.map(q => (
+          <div key={q.questionId} className="mb-6 bg-white p-4 rounded shadow">
+            <label className="block font-semibold mb-2">{q.text}</label>
 
-          return (
-            <div key={questionId} className="mb-6 bg-white p-4 rounded shadow">
-              <label className="block font-semibold mb-2">{q.text}</label>
+            {q.type === 'SHORT_ANSWER' && (
+              <input
+                type="text"
+                onChange={e => handleChange(q.questionId, e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            )}
 
-              {q.type === 'SHORT_ANSWER' && (
-                <input
-                  type="text"
-                  onChange={e => handleChange(questionId, e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-              )}
+            {q.type === 'LONG_ANSWER' && (
+              <textarea
+                rows="4"
+                onChange={e => handleChange(q.questionId, e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            )}
 
-              {q.type === 'LONG_ANSWER' && (
-                <textarea
-                  rows="4"
-                  onChange={e => handleChange(questionId, e.target.value)}
-                  className="w-full border p-2 rounded"
-                />
-              )}
+            {q.type === 'MULTIPLE_CHOICE' && (
+              <div className="space-y-2">
+                {q.options.map(opt => (
+                  <label key={opt} className="flex gap-2">
+                    <input
+                      type="radio"
+                      name={`q-${q.questionId}`}
+                      value={opt}
+                      onChange={() => handleChange(q.questionId, opt)}
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+            )}
 
-              {q.type === 'MULTIPLE_CHOICE' && (
-                <div className="space-y-2">
-                  {q.options.map(opt => (
-                    <label key={opt} className="flex gap-2">
-                      <input
-                        type="radio"
-                        name={`q-${questionId}`}
-                        value={opt}
-                        onChange={() => handleChange(questionId, opt)}
-                      />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {q.type === 'MULTI_SELECT' && (
-                <div className="space-y-2">
-                  {q.options.map(opt => (
+            {q.type === 'MULTI_SELECT' && (
+              <div className="space-y-2">
+                {q.options.map(opt => {
+                  const current = answers.find(a => a.questionId === q.questionId)?.response || [];
+                  return (
                     <label key={opt} className="flex gap-2">
                       <input
                         type="checkbox"
                         value={opt}
-                        onChange={() => handleMultiChange(questionId, opt)}
+                        checked={current.includes(opt)}
+                        onChange={() => handleMultiChange(q.questionId, opt)}
                       />
                       {opt}
                     </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
 
         <button
           onClick={handleSubmit}
