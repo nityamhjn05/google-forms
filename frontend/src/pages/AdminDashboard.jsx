@@ -1,3 +1,4 @@
+// === AdminDashboard.jsx ===
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -8,6 +9,11 @@ export default function AdminDashboard() {
   const [formsMap, setFormsMap] = useState({});
   const [groupedResponses, setGroupedResponses] = useState({});
   const [showResponses, setShowResponses] = useState(false);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('token');
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (showResponses) {
@@ -32,7 +38,6 @@ export default function AdminDashboard() {
             ).then(results => {
               const allResponses = results.flat();
               setResponses(allResponses);
-
               const grouped = {};
               allResponses.forEach(r => {
                 if (!grouped[r.userId]) grouped[r.userId] = [];
@@ -48,9 +53,17 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center gap-4">
-        <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
-        <h1 className="text-xl font-semibold">Admin Dashboard</h1>
+      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
+          <h1 className="text-xl font-semibold">Admin Dashboard</h1>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="bg-red-600 px-4 py-2 rounded text-sm hover:bg-red-700"
+        >
+          Logout
+        </button>
       </header>
 
       <main className="max-w-4xl mx-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -79,18 +92,11 @@ export default function AdminDashboard() {
                 const questions = form.questions || {};
                 return (
                   <div key={index} className="mb-4">
-                    <h4 className="text-md font-bold text-gray-700 mb-1">
-                      Form: {form.title || 'Unknown Form'}
-                    </h4>
+                    <h4 className="text-md font-bold text-gray-700 mb-1">Form: {form.title || 'Unknown Form'}</h4>
                     <ul className="space-y-1 ml-4">
                       {Array.isArray(r.answers) && r.answers.map((ans, idx) => (
                         <li key={idx} className="text-sm">
-                          <span className="font-medium">
-                            {questions[ans.questionId] || `QID: ${ans.questionId}`}:
-                          </span>{" "}
-                          {Array.isArray(ans.response)
-                            ? ans.response.join(', ')
-                            : ans.response}
+                          <span className="font-medium">{questions[ans.questionId] || `QID: ${ans.questionId}`}:</span> {Array.isArray(ans.response) ? ans.response.join(', ') : ans.response}
                         </li>
                       ))}
                     </ul>
