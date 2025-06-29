@@ -1,4 +1,3 @@
-// === AdminDashboard.jsx ===
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/api.js';
@@ -17,7 +16,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (showResponses) {
-      // Fetch all forms to map formId to title and questions
       API.get('/api/admin/forms')
         .then(res => {
           if (Array.isArray(res.data)) {
@@ -32,9 +30,10 @@ export default function AdminDashboard() {
             });
             setFormsMap(formMap);
 
-            // Now fetch responses for each form by ID
             Promise.all(
-              res.data.map(f => API.get(`/api/admin/forms/${f.id}/responses`).then(r => r.data))
+              res.data.map(f =>
+                API.get(`/api/admin/forms/${f.id}/responses`).then(r => r.data)
+              )
             ).then(results => {
               const allResponses = results.flat();
               setResponses(allResponses);
@@ -52,15 +51,18 @@ export default function AdminDashboard() {
   }, [showResponses]);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-blue-900 text-white px-6 py-4 shadow-md flex items-center justify-between">
+    <div
+      className="min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: "url('/assets/admin-bg.jpg')" }}
+    >
+      <header className="px-6 py-4 shadow-md flex items-center justify-between bg-transparent text-black">
         <div className="flex items-center gap-4">
           <img src="/assets/coforge-logo.png" alt="Coforge" className="h-10" />
           <h1 className="text-xl font-semibold">Admin Dashboard</h1>
         </div>
         <button
           onClick={handleLogout}
-          className="bg-red-600 px-4 py-2 rounded text-sm hover:bg-red-700"
+          className="bg-red-600 px-4 py-2 rounded text-sm hover:bg-red-700 text-white"
         >
           Logout
         </button>
@@ -92,13 +94,19 @@ export default function AdminDashboard() {
                 const questions = form.questions || {};
                 return (
                   <div key={index} className="mb-4">
-                    <h4 className="text-md font-bold text-gray-700 mb-1">Form: {form.title || 'Unknown Form'}</h4>
+                    <h4 className="text-md font-bold text-gray-700 mb-1">
+                      Form: {form.title || 'Unknown Form'}
+                    </h4>
                     <ul className="space-y-1 ml-4">
-                      {Array.isArray(r.answers) && r.answers.map((ans, idx) => (
-                        <li key={idx} className="text-sm">
-                          <span className="font-medium">{questions[ans.questionId] || `QID: ${ans.questionId}`}:</span> {Array.isArray(ans.response) ? ans.response.join(', ') : ans.response}
-                        </li>
-                      ))}
+                      {Array.isArray(r.answers) &&
+                        r.answers.map((ans, idx) => (
+                          <li key={idx} className="text-sm">
+                            <span className="font-medium">
+                              {questions[ans.questionId] || `QID: ${ans.questionId}`}:
+                            </span>{' '}
+                            {Array.isArray(ans.response) ? ans.response.join(', ') : ans.response}
+                          </li>
+                        ))}
                     </ul>
                   </div>
                 );
