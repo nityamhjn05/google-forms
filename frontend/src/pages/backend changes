@@ -451,3 +451,98 @@ public ResponseEntity<?> submitResponse(
 
     return ResponseEntity.ok("Response submitted successfully");
 }
+///usercontroller
+package com.yourproject.controller;
+
+import com.yourproject.model.Answer;
+import com.yourproject.model.Form;
+import com.yourproject.model.Question;
+import com.yourproject.model.Response;
+import com.yourproject.repository.FormRepository;
+import com.yourproject.repository.ResponseRepository;
+import lombok.Data;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/user")
+public class UserController {
+
+    @Autowired
+    private FormRepository formRepo;
+
+    @Autowired
+    private ResponseRepository responseRepo;
+
+    // Get assigned forms
+    @GetMapping("/forms/assigned")
+    public ResponseEntity<List<Form>> getAssignedForms(Authentication authentication) {
+        String employeeId = authentication.getName();
+        List<Form> forms = formRepo.findAll().stream()
+                .filter(f -> f.getTargetUserIds() != null && f.getTargetUserIds().contains(employeeId))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(forms);
+    }
+
+    // Submit or update response
+    @PostMapping("/forms/{formId}/submit")
+    public ResponseEntity<?> submitResponse(@PathVariable String formId,
+                                            @RequestBody SubmitRequest req,
+                                            Authentication authentication) {
+        String employeeId = authentication.getName();
+        Optional<Form> optionalForm = formRepo.findById(formId);
+        if (optionalForm.isEmpty()) return ResponseEntity.notFound().build();
+
+        Form form = optionalForm.get();
+        List<Answer> submittedAnswers = req.getAnswers();
+
+        // Validate required questions
+        List<String> missingRequiredQuestions = form.getQuestion().stream()
+                .filter(q -> Boolean.TRUE.equals(q.getRequired()))
+                .filter(q -> submittedAnswers.stream().noneMatch(a ->
+                        a.getQuestionId().equals(q.getQuestionId()) &&
+                        a.getResponse() != null &&
+                        (
+                            // Case for string response
+                            (a.getResponse() instanceof String && !((String) a.getResponse()).trim().isEmpty()) ||
+                            // Case for list (multi-select)
+                            (a.getResponse() instanceof List && !((List<?>) a.getResponse()).isEmpty())
+                        )
+                ))
+                .map(Question::getText)
+                .collect(Collectors.toList());
+
+        if (!missingRequiredQuestions.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body("Missing required answers for: " + missingRequiredQuestions);
+        }
+
+        // Save or update response
+        Response response = responseRepo.findByFormIdAndUserId(formId, employeeId).orElse(new Response());
+        response.setFormId(formId);
+        response.setUserId(employeeId);
+        response.setAnswers(submittedAnswers);
+
+        responseRepo.save(response);
+        return ResponseEntity.ok("Response submitted successfully");
+    }
+
+    // Check if user already submitted response for the form
+    @GetMapping("/forms/{formId}/submitted")
+    public ResponseEntity<Boolean> isFormSubmitted(@PathVariable String formId, Authentication authentication) {
+        String employeeId = authentication.getName();
+        boolean submitted = responseRepo.findByFormIdAndUserId(formId, employeeId).isPresent();
+        return ResponseEntity.ok(submitted);
+    }
+
+    @Data
+    public static class SubmitRequest {
+        private List<Answer> answers;
+    }
+}
