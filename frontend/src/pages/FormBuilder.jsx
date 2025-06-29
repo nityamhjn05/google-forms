@@ -23,24 +23,19 @@ export default function FormBuilder() {
     ]);
   };
 
-const updateQuestion = (id, key, value) => {
-  setQuestion(qs =>
-    qs.map(q =>
-      q.questionId === id
-        ? {
-            ...q,
-            [key]: value,
-            ...(key === 'type'
-              ? (value === 'MULTIPLE_CHOICE' || value === 'MULTI_SELECT'
-                ? { options: q.options?.length ? q.options : [''] }
-                : { options: [] }) // remove options if not a choice type
-              : {})
-          }
-        : q
-    )
-  );
-};
-
+  const updateQuestion = (id, key, value) => {
+    setQuestion(qs =>
+      qs.map(q =>
+        q.questionId === id
+          ? {
+              ...q,
+              [key]: value,
+              ...(key === 'type' && value !== 'MULTIPLE_CHOICE' ? { options: [''] } : {})
+            }
+          : q
+      )
+    );
+  };
 
   const updateOption = (qid, index, value) => {
     setQuestion(qs =>
@@ -87,55 +82,20 @@ const updateQuestion = (id, key, value) => {
     setAssignedEmployees([...assignedEmployees, '']);
   };
 
-const submitForm = async () => {
-  try {
-    // Clean and validate questions
-    const cleanedQuestions = question.map(q => {
-      const cleaned = {
-        ...q,
-        text: q.text.trim(),
-        questionId: q.questionId, // Ensure this exists
-      };
-
-      // Validate MULTI_SELECT and MULTIPLE_CHOICE types
-      if (q.type === 'MULTI_SELECT' || q.type === 'MULTIPLE_CHOICE') {
-        // Remove empty or whitespace-only options
-        const validOptions = (q.options || []).filter(opt => opt && opt.trim() !== '');
-        if (validOptions.length === 0) {
-          throw new Error(`Please provide at least one option for the question: "${q.text}"`);
-        }
-        cleaned.options = validOptions;
-      } else {
-        // For SHORT_ANSWER and LONG_ANSWER, remove the options key
-        delete cleaned.options;
-      }
-
-      return cleaned;
-    });
-
-    // Remove empty employee IDs
-    const cleanedEmployees = assignedEmployees.filter(e => e && e.trim() !== '');
-
-    // Validate form fields
-    if (!title.trim()) throw new Error('Form title cannot be empty.');
-    if (cleanedQuestions.length === 0) throw new Error('At least one question is required.');
-    if (cleanedEmployees.length === 0) throw new Error('At least one employee ID must be assigned.');
-
-    // Send request
-    await API.post('/api/admin/forms/create', {
-      title: title.trim(),
-      description: description.trim(),
-      question: cleanedQuestions,
-      targetUserIds: cleanedEmployees
-    });
-
-    navigate('/admin');
-  } catch (err) {
-    console.error('❌ Error saving form:', err);
-    alert(err.message || 'Failed to save form. Please try again.');
-  }
-};
-
+  const submitForm = async () => {
+    try {
+      await API.post('/api/admin/forms/create', {
+        title,
+        description,
+        question,
+        targetUserIds: assignedEmployees
+      });
+      navigate('/admin');
+    } catch (err) {
+      console.error('Error saving form:', err);
+      alert('Failed to save form.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -177,10 +137,9 @@ const submitForm = async () => {
               <option value="SHORT_ANSWER">Short Answer</option>
               <option value="LONG_ANSWER">Long Answer</option>
               <option value="MULTIPLE_CHOICE">Multiple Choice</option>
-              <option value="MULTI_SELECT">Multi Select</option>
             </select>
 
-            {(q.type === 'MULTIPLE_CHOICE' || q.type === 'MULTI_SELECT') && (
+            {q.type === 'MULTIPLE_CHOICE' && (
               <div className="pl-4">
                 {q.options.map((opt, idx) => (
                   <div key={idx} className="flex gap-2 mb-2">
