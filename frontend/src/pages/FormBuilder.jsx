@@ -23,23 +23,24 @@ export default function FormBuilder() {
     ]);
   };
 
-  const updateQuestion = (id, key, value) => {
-    setQuestion(qs =>
-      qs.map(q =>
-        q.questionId === id
-          ? {
-              ...q,
-              [key]: value,
-              ...(key === 'type' &&
-              value !== 'MULTIPLE_CHOICE' &&
-              value !== 'MULTI_SELECT'
-                ? { options: [''] }
-                : {})
-            }
-          : q
-      )
-    );
-  };
+const updateQuestion = (id, key, value) => {
+  setQuestion(qs =>
+    qs.map(q =>
+      q.questionId === id
+        ? {
+            ...q,
+            [key]: value,
+            ...(key === 'type'
+              ? (value === 'MULTIPLE_CHOICE' || value === 'MULTI_SELECT'
+                ? { options: q.options?.length ? q.options : [''] }
+                : { options: [] }) // remove options if not a choice type
+              : {})
+          }
+        : q
+    )
+  );
+};
+
 
   const updateOption = (qid, index, value) => {
     setQuestion(qs =>
